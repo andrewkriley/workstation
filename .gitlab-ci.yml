@@ -17,7 +17,9 @@ shellcheck:
 
 shfmt:
   stage: lint
-  image: mvdan/shfmt:latest
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache shfmt
   script:
     - find . -name "*.sh" -not -path "./.git/*" | xargs shfmt -d -i 2 -ci
   rules:

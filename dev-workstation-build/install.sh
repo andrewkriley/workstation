@@ -5,33 +5,32 @@
 
 set -euo pipefail
 
-RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-log()     { echo -e "${CYAN}-->${RESET} $1"; }
-ok()      { echo -e "${GREEN}[done]${RESET} $1"; }
-skip()    { echo -e "${YELLOW}[skip]${RESET} $1 (already installed)"; }
+log() { echo -e "${CYAN}-->${RESET} $1"; }
+ok() { echo -e "${GREEN}[done]${RESET} $1"; }
+skip() { echo -e "${YELLOW}[skip]${RESET} $1 (already installed)"; }
 section() { echo -e "\n${BOLD}${CYAN}=== $1 ===${RESET}"; }
 
 # ── Flags ─────────────────────────────────────────────────────────────────────
-INSTALL_SYSTEM=true   # apt packages (requires sudo)
-INSTALL_UV=true       # uv package manager
-INSTALL_AI_PKGS=true  # Python AI/ML packages
-INSTALL_OLLAMA=true   # Ollama local LLM
-INSTALL_AIDER=true    # Aider AI pair programmer
+INSTALL_SYSTEM=true  # apt packages (requires sudo)
+INSTALL_UV=true      # uv package manager
+INSTALL_AI_PKGS=true # Python AI/ML packages
+INSTALL_OLLAMA=true  # Ollama local LLM
+INSTALL_AIDER=true   # Aider AI pair programmer
 
 # Parse optional flags
 for arg in "$@"; do
   case $arg in
-    --no-system)    INSTALL_SYSTEM=false ;;
-    --no-uv)        INSTALL_UV=false ;;
-    --no-ai-pkgs)   INSTALL_AI_PKGS=false ;;
-    --no-ollama)    INSTALL_OLLAMA=false ;;
-    --no-aider)     INSTALL_AIDER=false ;;
+    --no-system) INSTALL_SYSTEM=false ;;
+    --no-uv) INSTALL_UV=false ;;
+    --no-ai-pkgs) INSTALL_AI_PKGS=false ;;
+    --no-ollama) INSTALL_OLLAMA=false ;;
+    --no-aider) INSTALL_AIDER=false ;;
     --help)
       echo "Usage: $0 [--no-system] [--no-uv] [--no-ai-pkgs] [--no-ollama] [--no-aider]"
       exit 0
@@ -49,11 +48,11 @@ if $INSTALL_SYSTEM; then
   sudo apt-get update -qq
 
   APT_PKGS=()
-  command -v git-lfs &>/dev/null    || APT_PKGS+=(git-lfs)
-  command -v clang   &>/dev/null    || APT_PKGS+=(clang)
-  command -v cargo   &>/dev/null    || APT_PKGS+=(cargo)
+  command -v git-lfs &>/dev/null || APT_PKGS+=(git-lfs)
+  command -v clang &>/dev/null || APT_PKGS+=(clang)
+  command -v cargo &>/dev/null || APT_PKGS+=(cargo)
   dpkg -s build-essential &>/dev/null 2>&1 || APT_PKGS+=(build-essential)
-  dpkg -s python3-venv    &>/dev/null 2>&1 || APT_PKGS+=(python3-venv)
+  dpkg -s python3-venv &>/dev/null 2>&1 || APT_PKGS+=(python3-venv)
 
   if [ ${#APT_PKGS[@]} -gt 0 ]; then
     log "Installing: ${APT_PKGS[*]}"
@@ -127,40 +126,40 @@ if $INSTALL_AI_PKGS; then
   fi
 
   # Core ML
-  install_pkg "torch"              torch
-  install_pkg "torchvision"        torchvision
-  install_pkg "transformers"       transformers
-  install_pkg "diffusers"          diffusers
-  install_pkg "datasets"           datasets
-  install_pkg "accelerate"         accelerate
-  install_pkg "peft"               peft
-  install_pkg "trl"                trl
+  install_pkg "torch" torch
+  install_pkg "torchvision" torchvision
+  install_pkg "transformers" transformers
+  install_pkg "diffusers" diffusers
+  install_pkg "datasets" datasets
+  install_pkg "accelerate" accelerate
+  install_pkg "peft" peft
+  install_pkg "trl" trl
 
   # APIs
-  install_pkg "anthropic"          anthropic
-  install_pkg "openai"             openai
+  install_pkg "anthropic" anthropic
+  install_pkg "openai" openai
 
   # Application frameworks
-  install_pkg "langchain"          langchain
-  install_pkg "llama-index"        llama_index
-  install_pkg "litellm"            litellm
+  install_pkg "langchain" langchain
+  install_pkg "llama-index" llama_index
+  install_pkg "litellm" litellm
 
   # Embeddings & vector stores
   install_pkg "sentence-transformers" sentence_transformers
-  install_pkg "chromadb"           chromadb
+  install_pkg "chromadb" chromadb
 
   # Hugging Face Hub CLI
-  install_pkg "huggingface-hub"    huggingface_hub
+  install_pkg "huggingface-hub" huggingface_hub
 
   # Notebooks
-  install_pkg "jupyterlab"         jupyterlab
-  install_pkg "ipywidgets"         ipywidgets
+  install_pkg "jupyterlab" jupyterlab
+  install_pkg "ipywidgets" ipywidgets
 
   # Utilities
-  install_pkg "python-dotenv"      dotenv
-  install_pkg "rich"               rich
-  install_pkg "httpx"              httpx
-  install_pkg "tqdm"               tqdm
+  install_pkg "python-dotenv" dotenv
+  install_pkg "rich" rich
+  install_pkg "httpx" httpx
+  install_pkg "tqdm" tqdm
 
   deactivate
   echo ""
@@ -171,7 +170,7 @@ if $INSTALL_AI_PKGS; then
   SHELL_RC="$HOME/.bashrc"
   [[ "$SHELL" == */zsh ]] && SHELL_RC="$HOME/.zshrc"
   if ! grep -q "alias ai-env=" "$SHELL_RC" 2>/dev/null; then
-    echo "$ACTIVATE_LINE" >> "$SHELL_RC"
+    echo "$ACTIVATE_LINE" >>"$SHELL_RC"
     ok "Added 'ai-env' alias to $SHELL_RC"
   fi
 fi
@@ -220,6 +219,6 @@ echo -e "  Next steps:"
 echo -e "    • Set API keys: ${CYAN}export ANTHROPIC_API_KEY=... OPENAI_API_KEY=...${RESET}"
 echo -e "    • Log in to HF:  ${CYAN}huggingface-cli login${RESET}"
 if $INSTALL_OLLAMA; then
-echo -e "    • Pull a model:  ${CYAN}ollama pull llama3.2${RESET}"
+  echo -e "    • Pull a model:  ${CYAN}ollama pull llama3.2${RESET}"
 fi
 echo ""

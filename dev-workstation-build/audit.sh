@@ -11,9 +11,9 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-ok()      { echo -e "  ${GREEN}[OK]${RESET}    $1"; }
+ok() { echo -e "  ${GREEN}[OK]${RESET}    $1"; }
 missing() { echo -e "  ${RED}[MISSING]${RESET} $1"; }
-warn()    { echo -e "  ${YELLOW}[WARN]${RESET}   $1"; }
+warn() { echo -e "  ${YELLOW}[WARN]${RESET}   $1"; }
 section() { echo -e "\n${CYAN}${BOLD}=== $1 ===${RESET}"; }
 
 check_cmd() {

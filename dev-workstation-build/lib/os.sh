@@ -60,7 +60,7 @@ pkg_install() {
   local pkg="$1"
   case "$PKG_MANAGER" in
     brew) brew install "$pkg" ;;
-    apt)  sudo apt-get install -y -qq "$pkg" ;;
+    apt) sudo apt-get install -y -qq "$pkg" ;;
   esac
 }
 

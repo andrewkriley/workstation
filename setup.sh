@@ -15,11 +15,11 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-log()     { echo -e "${CYAN}-->${RESET} $1"; }
-ok()      { echo -e "${GREEN}[done]${RESET} $1"; }
-skip()    { echo -e "${YELLOW}[skip]${RESET} $1"; }
+log() { echo -e "${CYAN}-->${RESET} $1"; }
+ok() { echo -e "${GREEN}[done]${RESET} $1"; }
+skip() { echo -e "${YELLOW}[skip]${RESET} $1"; }
 section() { echo -e "\n${BOLD}${CYAN}=== $1 ===${RESET}"; }
-dryrun()  { echo -e "${YELLOW}[dry-run]${RESET} $1"; }
+dryrun() { echo -e "${YELLOW}[dry-run]${RESET} $1"; }
 
 for arg in "$@"; do
   case $arg in

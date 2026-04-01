@@ -138,4 +138,72 @@ section "IDEs"
 check_cmd "VSCode (code)" code "--version"
 check_cmd "Cursor" cursor "--version"
 
+# ── Environment Config (env.sh) ───────────────────────────────────────────────
+section "Environment Config (env.sh)"
+
+ENV_FILE="$HOME/.config/riles-workstation/env.sh"
+
+if [ -f "$ENV_FILE" ]; then
+  ok "env.sh exists: $ENV_FILE"
+  chmod_val=$(stat -c '%a' "$ENV_FILE" 2>/dev/null || stat -f '%A' "$ENV_FILE" 2>/dev/null || echo "unknown")
+  if [ "$chmod_val" = "600" ]; then
+    ok "env.sh permissions: 600 (private)"
+  else
+    warn "env.sh permissions: $chmod_val (expected 600 — run: chmod 600 $ENV_FILE)"
+  fi
+
+  # Source env.sh in a subshell and check each expected variable
+  check_env_var() {
+    local var="$1"
+    local val
+    val=$(bash -c "source \"$ENV_FILE\" 2>/dev/null; printf '%s' \"\${$var:-}\"")
+    if [ -n "$val" ]; then
+      ok "$var: set"
+    else
+      warn "$var: not set (empty in $ENV_FILE)"
+    fi
+  }
+
+  echo ""
+  echo "  API Keys:"
+  check_env_var "GITHUB_TOKEN"
+  check_env_var "HF_TOKEN"
+
+  echo ""
+  echo "  LinkedIn:"
+  check_env_var "LINKEDIN_CLIENT_ID"
+  check_env_var "LINKEDIN_CLIENT_SECRET"
+  check_env_var "LINKEDIN_TOKEN"
+  check_env_var "LINKEDIN_PERSON_URN"
+
+  echo ""
+  echo "  Webex:"
+  check_env_var "WEBEX_CLIENT_ID"
+  check_env_var "WEBEX_CLIENT_SECRET"
+  check_env_var "WEBEX_TOKEN"
+  check_env_var "WEBEX_REFRESH_TOKEN"
+
+  echo ""
+  echo "  Splunk:"
+  check_env_var "SPLUNK_HOST"
+  check_env_var "SPLUNK_TOKEN"
+  check_env_var "SPLUNK_USER"
+  check_env_var "SPLUNK_PASS"
+  check_env_var "SPLUNK_API_TOKEN"
+
+  # Check it's wired into shell RC files
+  echo ""
+  echo "  Shell RC wiring:"
+  for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.bash_profile"; do
+    [ -f "$rc" ] || continue
+    if grep -qF "riles-workstation/env.sh" "$rc"; then
+      ok "Sourced in $rc"
+    else
+      warn "Not sourced in $rc — run: ./install-dotfiles.sh"
+    fi
+  done
+else
+  missing "env.sh not found at $ENV_FILE — run: ./install-dotfiles.sh"
+fi
+
 echo -e "\n${BOLD}Audit complete.${RESET} Run ${CYAN}./install.sh${RESET} to install missing components.\n"

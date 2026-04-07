@@ -123,7 +123,8 @@ MENU_LABELS=(
   "AI tools           (uv, Ollama, Aider, llm CLI)"
   "AI Python env      (~/ai-env — uv sync, ML packages; opt-in)"
   "MCP servers        (Claude Code CLI, filesystem/GitHub/Playwright MCP)"
-  "Ops tools          (Docker, Open WebUI, lazygit, k9s, starship, gh, glab, terraform, ansible, kubectl, helm)"
+  "Docker             (Docker Engine + Compose, Open WebUI)"
+  "Ops tools          (lazygit, k9s, starship, gh, glab, terraform, ansible, kubectl, helm)"
   "Dotfiles           (shell RC, env.sh, starship config)"
   "Claude skills      (symlink skills to ~/.claude/skills)"
   "Cursor rules       (symlink workflows to skills/cursor/rules)"
@@ -135,6 +136,7 @@ MENU_KEYS=(
   "install-ai.sh"
   "_ai_env"
   "install-mcp.sh"
+  "install-docker.sh"
   "install-ops.sh"
   "install-dotfiles.sh"
   "_claude_skills"
@@ -143,7 +145,7 @@ MENU_KEYS=(
   "_cli_auth"
 )
 # Default: none selected
-MENU_SELECTED=(0 0 0 0 0 0 0 0 0 0)
+MENU_SELECTED=(0 0 0 0 0 0 0 0 0 0 0)
 
 show_menu() {
   while true; do
@@ -274,6 +276,7 @@ ALL_MODULES=(
   install-system.sh
   install-ai.sh
   install-mcp.sh
+  install-docker.sh
   install-ops.sh
   install-dotfiles.sh
 )

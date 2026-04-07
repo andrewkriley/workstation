@@ -123,7 +123,7 @@ MENU_LABELS=(
   "AI tools           (uv, Ollama, Aider, llm CLI)"
   "AI Python env      (~/ai-env — uv sync, ML packages; opt-in)"
   "MCP servers        (Claude Code CLI, filesystem/GitHub/Playwright MCP)"
-  "Ops tools          (Docker, Open WebUI, lazygit, k9s, starship)"
+  "Ops tools          (Docker, Open WebUI, lazygit, k9s, starship, gh, glab, terraform, ansible, kubectl, helm)"
   "Dotfiles           (shell RC, env.sh, starship config)"
   "Claude skills      (symlink skills to ~/.claude/skills)"
   "Cursor rules       (symlink workflows to skills/cursor/rules)"
@@ -206,7 +206,7 @@ is_selected() {
   local i
   for i in "${!MENU_KEYS[@]}"; do
     if [ "${MENU_KEYS[$i]}" = "$key" ]; then
-      return $(( 1 - MENU_SELECTED[$i] ))
+      return $((1 - MENU_SELECTED[$i]))
     fi
   done
   return 0
@@ -313,73 +313,73 @@ fi
 
 # ── CLI auth wiring ───────────────────────────────────────────────────────────
 if is_selected "_cli_auth"; then
-section "CLI Auth"
+  section "CLI Auth"
 
-ENV_FILE="$HOME/.config/workstation/env.sh"
+  ENV_FILE="$HOME/.config/workstation/env.sh"
 
-# Re-source env.sh to pick up any token updates written by prompt_api_keys or
-# applied externally since the shell session started.
-if [ -f "$ENV_FILE" ]; then
-  # shellcheck source=/dev/null
-  source "$ENV_FILE" 2>/dev/null || true
-  log "Sourced $ENV_FILE"
-else
-  warn "$ENV_FILE not found — run './setup.sh --prompt-keys' to create it"
-fi
-
-# gh (GitHub CLI)
-if command -v gh &>/dev/null; then
-  if [ -n "${GITHUB_TOKEN:-}" ]; then
-    if gh auth status &>/dev/null 2>&1; then
-      skip "gh auth (already authenticated)"
-    else
-      if $DRY_RUN; then
-        dryrun "Would authenticate gh via GITHUB_TOKEN"
-      else
-        echo "$GITHUB_TOKEN" | gh auth login --with-token
-        ok "gh authenticated via GITHUB_TOKEN"
-      fi
-    fi
+  # Re-source env.sh to pick up any token updates written by prompt_api_keys or
+  # applied externally since the shell session started.
+  if [ -f "$ENV_FILE" ]; then
+    # shellcheck source=/dev/null
+    source "$ENV_FILE" 2>/dev/null || true
+    log "Sourced $ENV_FILE"
   else
-    skip "gh auth (GITHUB_TOKEN not set)"
+    warn "$ENV_FILE not found — run './setup.sh --prompt-keys' to create it"
   fi
-fi
 
-# glab (GitLab CLI)
-if command -v glab &>/dev/null; then
-  if [ -n "${GITLAB_TOKEN:-}" ]; then
-    if glab auth status &>/dev/null 2>&1; then
-      skip "glab auth (already authenticated)"
-    else
-      if $DRY_RUN; then
-        dryrun "Would authenticate glab via GITLAB_TOKEN"
+  # gh (GitHub CLI)
+  if command -v gh &>/dev/null; then
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+      if gh auth status &>/dev/null 2>&1; then
+        skip "gh auth (already authenticated)"
       else
-        echo "$GITLAB_TOKEN" | glab auth login --stdin
-        ok "glab authenticated via GITLAB_TOKEN"
+        if $DRY_RUN; then
+          dryrun "Would authenticate gh via GITHUB_TOKEN"
+        else
+          echo "$GITHUB_TOKEN" | gh auth login --with-token
+          ok "gh authenticated via GITHUB_TOKEN"
+        fi
       fi
+    else
+      skip "gh auth (GITHUB_TOKEN not set)"
     fi
-  else
-    skip "glab auth (GITLAB_TOKEN not set)"
   fi
-fi
 
-# huggingface-cli (Hugging Face Hub)
-if command -v huggingface-cli &>/dev/null; then
-  if [ -n "${HF_TOKEN:-}" ]; then
-    if huggingface-cli whoami &>/dev/null 2>&1; then
-      skip "huggingface-cli auth (already authenticated)"
-    else
-      if $DRY_RUN; then
-        dryrun "Would authenticate huggingface-cli via HF_TOKEN"
+  # glab (GitLab CLI)
+  if command -v glab &>/dev/null; then
+    if [ -n "${GITLAB_TOKEN:-}" ]; then
+      if glab auth status &>/dev/null 2>&1; then
+        skip "glab auth (already authenticated)"
       else
-        huggingface-cli login --token "$HF_TOKEN"
-        ok "huggingface-cli authenticated via HF_TOKEN"
+        if $DRY_RUN; then
+          dryrun "Would authenticate glab via GITLAB_TOKEN"
+        else
+          echo "$GITLAB_TOKEN" | glab auth login --stdin
+          ok "glab authenticated via GITLAB_TOKEN"
+        fi
       fi
+    else
+      skip "glab auth (GITLAB_TOKEN not set)"
     fi
-  else
-    skip "huggingface-cli auth (HF_TOKEN not set)"
   fi
-fi
+
+  # huggingface-cli (Hugging Face Hub)
+  if command -v huggingface-cli &>/dev/null; then
+    if [ -n "${HF_TOKEN:-}" ]; then
+      if huggingface-cli whoami &>/dev/null 2>&1; then
+        skip "huggingface-cli auth (already authenticated)"
+      else
+        if $DRY_RUN; then
+          dryrun "Would authenticate huggingface-cli via HF_TOKEN"
+        else
+          huggingface-cli login --token "$HF_TOKEN"
+          ok "huggingface-cli authenticated via HF_TOKEN"
+        fi
+      fi
+    else
+      skip "huggingface-cli auth (HF_TOKEN not set)"
+    fi
+  fi
 
 fi # is_selected "_cli_auth"
 

@@ -7,6 +7,8 @@ on:
   schedule:
     - cron: "0 6 * * 1"  # weekly on Monday
 
+permissions: read-all
+
 jobs:
   # ── Secret Detection ──────────────────────────────────────────────────────────
   # Full git history scan — catches secrets in any commit, not just the diff.

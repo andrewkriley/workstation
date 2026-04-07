@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # install-ops.sh — DevOps + platform tools
-# Installs: Docker + Compose, Open WebUI (Docker), lazygit, k9s, starship, gh, glab
+# Installs: Docker + Compose, Open WebUI (Docker), lazygit, k9s, starship, gh, glab,
+#           terraform, ansible, kubectl, helm
 # Safe to re-run — idempotent throughout.
 
 set -euo pipefail
@@ -251,6 +252,109 @@ else
     sudo install -m 755 /tmp/bin/glab /usr/local/bin/glab
     rm -rf /tmp/bin
     ok "glab ${GLAB_VERSION} installed"
+  fi
+fi
+
+# ── Terraform ─────────────────────────────────────────────────────────────────
+section "Terraform"
+if command -v terraform &>/dev/null; then
+  skip "terraform ($(terraform version -json 2>/dev/null | grep '"terraform_version"' | cut -d'"' -f4))"
+elif [[ "$OS" == macos-* ]]; then
+  if $DRY_RUN; then
+    dryrun "Would run: brew install hashicorp/tap/terraform"
+  else
+    log "Installing Terraform..."
+    brew tap hashicorp/tap
+    brew install hashicorp/tap/terraform
+    ok "terraform installed"
+  fi
+else
+  if $DRY_RUN; then
+    dryrun "Would add HashiCorp apt repo and install terraform"
+  else
+    log "Installing Terraform..."
+    curl -fsSL https://apt.releases.hashicorp.com/gpg |
+      sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" |
+      sudo tee /etc/apt/sources.list.d/hashicorp.list >/dev/null
+    sudo apt-get update -qq
+    sudo apt-get install -y -qq terraform
+    ok "terraform installed"
+  fi
+fi
+
+# ── Ansible ───────────────────────────────────────────────────────────────────
+section "Ansible"
+if command -v ansible &>/dev/null; then
+  skip "ansible ($(ansible --version 2>/dev/null | head -1))"
+elif [[ "$OS" == macos-* ]]; then
+  if $DRY_RUN; then
+    dryrun "Would run: brew install ansible"
+  else
+    log "Installing Ansible..."
+    brew install ansible
+    ok "ansible installed"
+  fi
+else
+  if $DRY_RUN; then
+    dryrun "Would run: apt-get install ansible"
+  else
+    log "Installing Ansible..."
+    sudo apt-get install -y -qq software-properties-common
+    sudo add-apt-repository --yes --update ppa:ansible/ansible
+    sudo apt-get install -y -qq ansible
+    ok "ansible installed"
+  fi
+fi
+
+# ── kubectl ───────────────────────────────────────────────────────────────────
+section "kubectl"
+if command -v kubectl &>/dev/null; then
+  skip "kubectl ($(kubectl version --client --short 2>/dev/null | head -1))"
+elif [[ "$OS" == macos-* ]]; then
+  if $DRY_RUN; then
+    dryrun "Would run: brew install kubectl"
+  else
+    log "Installing kubectl..."
+    brew install kubectl
+    ok "kubectl installed"
+  fi
+else
+  if $DRY_RUN; then
+    dryrun "Would download kubectl binary from dl.k8s.io"
+  else
+    log "Installing kubectl..."
+    KUBE_VERSION="$(curl -sSfL https://dl.k8s.io/release/stable.txt)"
+    ARCH="$(uname -m)"
+    KUBE_ARCH="amd64"
+    [[ "$ARCH" == "aarch64" ]] && KUBE_ARCH="arm64"
+    curl -sSfL "https://dl.k8s.io/release/${KUBE_VERSION}/bin/linux/${KUBE_ARCH}/kubectl" \
+      -o /tmp/kubectl
+    sudo install -m 755 /tmp/kubectl /usr/local/bin/kubectl
+    rm -f /tmp/kubectl
+    ok "kubectl ${KUBE_VERSION} installed"
+  fi
+fi
+
+# ── Helm ──────────────────────────────────────────────────────────────────────
+section "Helm"
+if command -v helm &>/dev/null; then
+  skip "helm ($(helm version --short 2>/dev/null))"
+elif [[ "$OS" == macos-* ]]; then
+  if $DRY_RUN; then
+    dryrun "Would run: brew install helm"
+  else
+    log "Installing Helm..."
+    brew install helm
+    ok "helm installed"
+  fi
+else
+  if $DRY_RUN; then
+    dryrun "Would run: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash"
+  else
+    log "Installing Helm..."
+    curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    ok "helm installed"
   fi
 fi
 

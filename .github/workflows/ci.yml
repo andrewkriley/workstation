@@ -10,6 +10,8 @@ on:
     # No path filter — CI must run on every PR so required status checks
     # are never skipped (skipped checks block merge in branch protection).
 
+permissions: read-all
+
 jobs:
   # ── Lint ──────────────────────────────────────────────────────────────────────
 

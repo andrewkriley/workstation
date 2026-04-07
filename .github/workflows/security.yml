@@ -9,10 +9,9 @@ on:
 
 jobs:
   # ── Secret Detection ──────────────────────────────────────────────────────────
-  # Equivalent to GitLab's Secret-Detection.gitlab-ci.yml template.
-  # Note: SAST for shell scripts is covered by shellcheck in ci.yml.
+  # Full git history scan — catches secrets in any commit, not just the diff.
 
-  secret-detection:
+  gitleaks:
     name: gitleaks
     runs-on: ubuntu-latest
     steps:
@@ -22,3 +21,97 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Filesystem Vulnerability + Misconfiguration Scan ─────────────────────────
+  # Trivy scans for leaked secrets in files and shell/Docker misconfigurations.
+
+  trivy:
+    name: trivy
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write  # upload SARIF to GitHub Security tab
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Trivy (secrets + misconfig)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret,misconfig
+          severity: HIGH,CRITICAL
+          format: sarif
+          output: trivy-results.sarif
+          exit-code: "1"
+      - name: Upload Trivy SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy
+
+  # ── IaC / Config Misconfiguration ─────────────────────────────────────────────
+  # Checkov flags issues in Terraform, Dockerfiles, and GitHub Actions workflows.
+
+  checkov:
+    name: checkov
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform,dockerfile,github_actions
+          output_format: cli,sarif
+          output_file_path: console,checkov-results.sarif
+          soft_fail: false
+      - name: Upload Checkov SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov-results.sarif
+          category: checkov
+
+  # ── GitHub Actions Workflow Linting ───────────────────────────────────────────
+  # actionlint catches type errors, invalid expressions, and bad action usage.
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actionlint
+        uses: rhysd/actionlint@v1
+        with:
+          fail-on-error: true
+
+  # ── Supply Chain / Dependency Integrity ───────────────────────────────────────
+  # OpenSSF Scorecard checks security hygiene for public repos.
+  # Runs on push to main and weekly — not on every PR (too slow for that).
+
+  scorecard:
+    name: scorecard
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    permissions:
+      security-events: write
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run OpenSSF Scorecard
+        uses: ossf/scorecard-action@v2.4.0
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: true
+      - name: Upload Scorecard SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: scorecard-results.sarif
+          category: scorecard

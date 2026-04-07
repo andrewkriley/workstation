@@ -27,7 +27,8 @@ Personal workstation scaffold — a turnkey, idempotent setup for an AI-augmente
     ├── install-system.sh           # apt/brew: ripgrep, bat, fzf, eza, zoxide, jq, yq, fnm, tmux
     ├── install-ai.sh               # uv, ~/ai-env via uv sync, Ollama (native), Aider, llm CLI, faster-whisper
     ├── install-mcp.sh              # Claude Code CLI, filesystem/GitHub/Playwright/Brave Search MCP servers
-    ├── install-ops.sh              # Docker + Compose, Open WebUI (Docker), lazygit, k9s, starship
+    ├── install-docker.sh           # Docker Engine + Compose plugin, Open WebUI (Docker)
+    ├── install-ops.sh              # lazygit, k9s, starship, gh, glab, terraform, ansible, kubectl, helm
     ├── install-dotfiles.sh         # Shell RC wiring, env.sh from template, starship config
     ├── audit.sh                    # Read-only environment inventory
     └── tests/                      # bats unit tests — one file per module
@@ -113,13 +114,19 @@ All platform branching is centralised in `lib/os.sh`. `detect_os()` returns one 
 | PyTorch index | MPS (Apple Silicon) via `pyproject.toml` platform marker | CUDA via `pyproject.toml` platform marker |
 | Everything else (uv, ai-env, Ollama, Aider, llm) | Identical | Identical |
 
-### install-ops.sh
+### install-docker.sh
 
 | Tool | macOS | Linux |
 |------|-------|-------|
 | Docker | `brew install --cask docker` (Docker Desktop) | `get.docker.com` script; `usermod -aG docker $USER` (re-login needed) |
 | Docker Compose | Bundled with Docker Desktop | Downloaded separately from GitHub releases as CLI plugin |
 | Post-Docker | `open -a Docker` + 60s daemon wait | No wait needed (daemon starts automatically) |
+| Open WebUI | `docker run` on port 3000 (same on both) | Same |
+
+### install-ops.sh
+
+| Tool | macOS | Linux |
+|------|-------|-------|
 | lazygit | `brew install lazygit` | Binary tarball from GitHub releases; `sudo install` to `/usr/local/bin` |
 | k9s | `brew install k9s` | Binary tarball from GitHub releases; `sudo install` to `/usr/local/bin` |
 | starship | `curl` install script (same on both) | Same |

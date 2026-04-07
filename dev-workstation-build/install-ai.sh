@@ -111,7 +111,7 @@ if $WITH_VENV; then
   fi
 else
   section "Python Virtual Environment (~/ai-env)"
-  skip "~/ai-env (opt-in — pass --with-venv to create)"
+  skip "$HOME/ai-env (opt-in — pass --with-venv to create)"
 fi
 
 # ── Ollama ────────────────────────────────────────────────────────────────────

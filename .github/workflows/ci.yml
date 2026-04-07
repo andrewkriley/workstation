@@ -10,6 +10,8 @@ on:
     # No path filter — CI must run on every PR so required status checks
     # are never skipped (skipped checks block merge in branch protection).
 
+permissions: read-all
+
 jobs:
   # ── Lint ──────────────────────────────────────────────────────────────────────
 
@@ -20,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run shellcheck
-        run: find . -name "*.sh" -not -path "./.git/*" | xargs shellcheck --severity=warning
+        run: find . -name "*.sh" -not -path "./.git/*" -print0 | xargs -0 shellcheck --severity=warning
 
   shfmt:
     name: shfmt
@@ -29,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Run shfmt
-        run: apk add --no-cache shfmt && find . -name "*.sh" -not -path "./.git/*" | xargs shfmt -d -i 2 -ci
+        run: apk add --no-cache shfmt && find . -name "*.sh" -not -path "./.git/*" -print0 | xargs -0 shfmt -d -i 2 -ci
 
   # ── Test ──────────────────────────────────────────────────────────────────────
 

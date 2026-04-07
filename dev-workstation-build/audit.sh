@@ -67,7 +67,7 @@ if [ "$_AUDIT_OS" = "macos" ]; then
   echo "  CPU:  $(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo 'unknown')"
   echo "  Cores: $(sysctl -n hw.ncpu 2>/dev/null || echo 'unknown')"
   _mem_bytes=$(sysctl -n hw.memsize 2>/dev/null || echo 0)
-  echo "  RAM:  $(( _mem_bytes / 1024 / 1024 / 1024 ))GB total"
+  echo "  RAM:  $((_mem_bytes / 1024 / 1024 / 1024))GB total"
 else
   echo "  CPU:  $(lscpu 2>/dev/null | grep 'Model name' | sed 's/Model name:[ ]*//' || echo 'unknown')"
   echo "  Cores: $(nproc 2>/dev/null || echo 'unknown')"

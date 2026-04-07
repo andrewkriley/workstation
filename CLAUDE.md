@@ -123,6 +123,10 @@ All platform branching is centralised in `lib/os.sh`. `detect_os()` returns one 
 | lazygit | `brew install lazygit` | Binary tarball from GitHub releases; `sudo install` to `/usr/local/bin` |
 | k9s | `brew install k9s` | Binary tarball from GitHub releases; `sudo install` to `/usr/local/bin` |
 | starship | `curl` install script (same on both) | Same |
+| Terraform | `brew install hashicorp/tap/terraform` | HashiCorp apt repo |
+| Ansible | `brew install ansible` | PPA (`ppa:ansible/ansible`) via apt |
+| kubectl | `brew install kubectl` | Binary download from `dl.k8s.io` |
+| Helm | `brew install helm` | Official `get-helm-3` install script |
 
 ### install-mcp.sh
 

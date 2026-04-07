@@ -120,7 +120,8 @@ prompt_api_keys() {
 # Each entry maps 1:1: MENU_LABELS[i] <-> MENU_KEYS[i] <-> MENU_SELECTED[i]
 MENU_LABELS=(
   "System tools       (ripgrep, bat, fzf, eza, zoxide, jq, fnm, tmux)"
-  "AI tools           (uv, ~/ai-env, Ollama, Aider, llm CLI)"
+  "AI tools           (uv, Ollama, Aider, llm CLI)"
+  "AI Python env      (~/ai-env — uv sync, ML packages; opt-in)"
   "MCP servers        (Claude Code CLI, filesystem/GitHub/Playwright MCP)"
   "Ops tools          (Docker, Open WebUI, lazygit, k9s, starship)"
   "Dotfiles           (shell RC, env.sh, starship config)"
@@ -131,6 +132,7 @@ MENU_LABELS=(
 MENU_KEYS=(
   "install-system.sh"
   "install-ai.sh"
+  "_ai_env"
   "install-mcp.sh"
   "install-ops.sh"
   "install-dotfiles.sh"
@@ -138,8 +140,8 @@ MENU_KEYS=(
   "_cursor_rules"
   "_api_keys"
 )
-# Default: all on except API keys (which require --prompt-keys or explicit selection)
-MENU_SELECTED=(1 1 1 1 1 1 1 0)
+# Default: all on except AI Python env and API keys (both are explicit opt-in)
+MENU_SELECTED=(1 1 0 1 1 1 1 1 0)
 
 show_menu() {
   while true; do
@@ -166,10 +168,10 @@ show_menu() {
         break
         ;;
       a | A)
-        MENU_SELECTED=(1 1 1 1 1 1 1 1)
+        MENU_SELECTED=(1 1 1 1 1 1 1 1 1)
         ;;
       n | N)
-        MENU_SELECTED=(0 0 0 0 0 0 0 0)
+        MENU_SELECTED=(0 0 0 0 0 0 0 0 0)
         ;;
       *)
         local token idx
@@ -249,7 +251,7 @@ if $INTERACTIVE; then
   fi
   show_menu
   # Sync PROMPT_KEYS with whatever the user selected in the menu
-  if [ "${MENU_SELECTED[7]}" -eq 1 ]; then
+  if [ "${MENU_SELECTED[8]}" -eq 1 ]; then
     PROMPT_KEYS=true
   else
     PROMPT_KEYS=false
@@ -287,10 +289,14 @@ if [ "${#MODULES[@]}" -gt 0 ]; then
     module_path="$REPO_DIR/dev-workstation-build/$module"
     if [ -f "$module_path" ]; then
       echo -e "\n${BOLD}[${STEP}/${TOTAL_MODULES}]${RESET} ${CYAN}${module}${RESET}"
+      MODULE_ARGS=()
+      if [[ "$module" == "install-ai.sh" ]] && is_selected "_ai_env"; then
+        MODULE_ARGS+=(--with-venv)
+      fi
       if $DRY_RUN; then
-        bash "$module_path" --dry-run
+        bash "$module_path" --dry-run ${MODULE_ARGS[@]+"${MODULE_ARGS[@]}"}
       else
-        bash "$module_path"
+        bash "$module_path" ${MODULE_ARGS[@]+"${MODULE_ARGS[@]}"}
       fi
     else
       echo -e "\n${BOLD}[${STEP}/${TOTAL_MODULES}]${RESET} ${CYAN}${module}${RESET}"

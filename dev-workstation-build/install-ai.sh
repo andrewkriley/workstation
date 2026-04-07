@@ -7,6 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DRY_RUN=false
+WITH_VENV=false
 VENV_DIR="$HOME/ai-env"
 
 GREEN='\033[0;32m'
@@ -24,8 +25,10 @@ dryrun() { echo -e "${YELLOW}[dry-run]${RESET} $1"; }
 for arg in "$@"; do
   case $arg in
     --dry-run) DRY_RUN=true ;;
+    --with-venv) WITH_VENV=true ;;
     --help)
-      echo "Usage: $0 [--dry-run]"
+      echo "Usage: $0 [--dry-run] [--with-venv]"
+      echo "  --with-venv    Create ~/ai-env and sync ML packages via uv sync"
       exit 0
       ;;
   esac
@@ -81,29 +84,34 @@ if [[ "$OS" == linux-* ]]; then
   fi
 fi
 
-# ── ~/ai-env virtual environment ──────────────────────────────────────────────
-section "Python Virtual Environment (~/ai-env)"
-if [ -d "$VENV_DIR" ]; then
-  skip "$VENV_DIR (already exists)"
-elif $DRY_RUN; then
-  dryrun "Would run: uv venv $VENV_DIR"
-else
-  log "Creating virtual environment at $VENV_DIR..."
-  uv venv "$VENV_DIR"
-  ok "Virtual environment created"
-fi
+# ── ~/ai-env virtual environment (opt-in via --with-venv) ────────────────────
+if $WITH_VENV; then
+  section "Python Virtual Environment (~/ai-env)"
+  if [ -d "$VENV_DIR" ]; then
+    skip "$VENV_DIR (already exists)"
+  elif $DRY_RUN; then
+    dryrun "Would run: uv venv $VENV_DIR"
+  else
+    log "Creating virtual environment at $VENV_DIR..."
+    uv venv "$VENV_DIR"
+    ok "Virtual environment created"
+  fi
 
-# ── AI/ML packages via uv sync ────────────────────────────────────────────────
-section "AI/ML Packages (uv sync)"
-if $DRY_RUN; then
-  dryrun "Would run: UV_PROJECT_ENVIRONMENT=$VENV_DIR uv sync --directory $SCRIPT_DIR"
+  # ── AI/ML packages via uv sync ──────────────────────────────────────────────
+  section "AI/ML Packages (uv sync)"
+  if $DRY_RUN; then
+    dryrun "Would run: UV_PROJECT_ENVIRONMENT=$VENV_DIR uv sync --directory $SCRIPT_DIR"
+  else
+    log "Syncing packages from pyproject.toml..."
+    UV_PROJECT_ENVIRONMENT="$VENV_DIR" uv sync \
+      --directory "$SCRIPT_DIR" \
+      --no-dev \
+      --inexact
+    ok "AI/ML packages installed"
+  fi
 else
-  log "Syncing packages from pyproject.toml..."
-  UV_PROJECT_ENVIRONMENT="$VENV_DIR" uv sync \
-    --directory "$SCRIPT_DIR" \
-    --no-dev \
-    --inexact
-  ok "AI/ML packages installed"
+  section "Python Virtual Environment (~/ai-env)"
+  skip "~/ai-env (opt-in — pass --with-venv to create)"
 fi
 
 # ── Ollama ────────────────────────────────────────────────────────────────────

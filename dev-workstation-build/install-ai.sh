@@ -127,7 +127,7 @@ elif $DRY_RUN; then
   dryrun "Would run: uv tool install aider-chat"
 else
   log "Installing aider..."
-  uv tool install aider-chat
+  uv tool install aider-chat --python 3.13
   ok "aider installed"
 fi
 

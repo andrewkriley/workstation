@@ -50,6 +50,7 @@ else
         dryrun "Would run: fnm install --lts && fnm use lts-latest"
       else
         log "Installing Node LTS via fnm..."
+        eval "$(fnm env)"
         fnm install --lts
         fnm use lts-latest
         eval "$(fnm env)"

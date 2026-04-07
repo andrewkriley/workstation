@@ -48,8 +48,25 @@ else
       dryrun "Would run: brew install --cask docker"
     else
       log "Installing Docker Desktop via Homebrew..."
+      # Pre-create dir the docker-desktop cask needs — brew spawns a subprocess
+      # that loses the TTY, so sudo can't prompt there. Run it here first.
+      sudo mkdir -p /usr/local/cli-plugins
       brew install --cask docker
-      ok "Docker Desktop installed — open Docker.app to complete setup"
+      ok "Docker Desktop installed"
+      log "Launching Docker Desktop..."
+      open -a Docker
+      log "Waiting for Docker daemon (up to 60s)..."
+      for i in $(seq 1 60); do
+        if docker info &>/dev/null 2>&1; then
+          ok "Docker daemon is ready"
+          break
+        fi
+        if [[ $i -eq 60 ]]; then
+          echo "Docker daemon did not start in time — Open WebUI will be skipped."
+          echo "Re-run this script after Docker Desktop is running."
+        fi
+        sleep 1
+      done
     fi
   else
     # Linux: official Docker apt repo
@@ -87,8 +104,8 @@ fi
 
 # ── Open WebUI ────────────────────────────────────────────────────────────────
 section "Open WebUI (Docker)"
-if ! command -v docker &>/dev/null; then
-  skip "Open WebUI — Docker not available, skipping"
+if ! docker info &>/dev/null 2>&1; then
+  skip "Open WebUI — Docker daemon not running, skipping"
 elif docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^open-webui$"; then
   skip "open-webui container (already exists)"
 elif $DRY_RUN; then

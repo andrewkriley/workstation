@@ -225,6 +225,10 @@ fi
 
 echo -e "\n${BOLD}${GREEN}Dotfiles wired!${RESET}"
 echo ""
-echo -e "  Reload your shell or run: ${CYAN}source ~/.bashrc${RESET}"
+if [[ "$OS" == macos-* ]]; then
+  echo -e "  Reload your shell or run: ${CYAN}source ~/.zshrc${RESET}"
+else
+  echo -e "  Reload your shell or run: ${CYAN}source ~/.bashrc${RESET}"
+fi
 echo -e "  Set API keys in:          ${CYAN}~/.config/riles-workstation/env.sh${RESET}"
 echo ""

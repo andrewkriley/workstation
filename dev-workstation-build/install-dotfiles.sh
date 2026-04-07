@@ -197,22 +197,60 @@ eval "$(starship init bash)"' \
   STARSHIP_CFG="$HOME/.config/starship.toml"
   if [ ! -f "$STARSHIP_CFG" ]; then
     if $DRY_RUN; then
-      dryrun "Would create minimal $STARSHIP_CFG"
+      dryrun "Would create $STARSHIP_CFG"
     else
       mkdir -p "$(dirname "$STARSHIP_CFG")"
       cat >"$STARSHIP_CFG" <<'TOML'
 # starship.toml — riles-workstation default
 # Docs: https://starship.rs/config/
 
+# Left prompt: path → git → python → character
+format = """
+$directory$git_branch$git_status$python$character"""
+
+# Right prompt: slow/noisy info stays out of the way
+right_format = """
+$kubernetes$docker_context$cmd_duration$time"""
+
 [character]
 success_symbol = "[❯](bold green)"
 error_symbol   = "[❯](bold red)"
 
+[directory]
+truncation_length = 3
+truncate_to_repo  = true
+
 [git_branch]
 symbol = " "
 
+[git_status]
+ahead    = "⇡${count}"
+behind   = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+staged   = "[+${count}](green)"
+stashed  = "[$count](yellow)"
+
 [python]
-symbol = " "
+symbol             = " "
+pyenv_version_name = false
+format             = '[${symbol}(${virtualenv})]($style) '
+
+[cmd_duration]
+min_time = 2000
+format   = "took [$duration](bold yellow) "
+
+[docker_context]
+only_with_files = false
+
+[kubernetes]
+disabled = false
+format   = '[$symbol$context(\($namespace\))]($style) '
+
+[time]
+disabled    = false
+time_format = "%H:%M"
+format      = '[$time]($style) '
+style       = "dimmed white"
 TOML
       ok "Minimal starship config created at $STARSHIP_CFG"
     fi

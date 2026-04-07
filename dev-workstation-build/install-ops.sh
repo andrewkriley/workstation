@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # install-ops.sh — DevOps + platform tools
-# Installs: Docker + Compose, Open WebUI (Docker), lazygit, k9s, starship
+# Installs: Docker + Compose, Open WebUI (Docker), lazygit, k9s, starship, gh, glab
 # Safe to re-run — idempotent throughout.
 
 set -euo pipefail
@@ -193,6 +193,65 @@ else
   log "Installing starship..."
   curl -sS https://starship.rs/install.sh | sh -s -- --yes
   ok "starship installed"
+fi
+
+# ── gh (GitHub CLI) ───────────────────────────────────────────────────────────
+section "gh (GitHub CLI)"
+if command -v gh &>/dev/null; then
+  skip "gh ($(gh --version 2>/dev/null | head -1))"
+elif [[ "$OS" == macos-* ]]; then
+  if $DRY_RUN; then
+    dryrun "Would run: brew install gh"
+  else
+    log "Installing gh..."
+    brew install gh
+    ok "gh installed"
+  fi
+else
+  if $DRY_RUN; then
+    dryrun "Would add GitHub CLI apt repo and install gh"
+  else
+    log "Installing gh via apt..."
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg |
+      sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+    sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" |
+      sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+    sudo apt-get update -qq
+    sudo apt-get install -y -qq gh
+    ok "gh installed"
+  fi
+fi
+
+# ── glab (GitLab CLI) ─────────────────────────────────────────────────────────
+section "glab (GitLab CLI)"
+if command -v glab &>/dev/null; then
+  skip "glab ($(glab --version 2>/dev/null | head -1))"
+elif [[ "$OS" == macos-* ]]; then
+  if $DRY_RUN; then
+    dryrun "Would run: brew install glab"
+  else
+    log "Installing glab..."
+    brew install glab
+    ok "glab installed"
+  fi
+else
+  if $DRY_RUN; then
+    dryrun "Would download glab binary from GitHub releases"
+  else
+    log "Installing glab..."
+    GLAB_VERSION="$(curl -sSfL https://api.github.com/repos/gitlab-org/cli/releases/latest |
+      grep '"tag_name"' | cut -d'"' -f4)"
+    ARCH="$(uname -m)"
+    GLAB_ARCH="amd64"
+    [[ "$ARCH" == "aarch64" ]] && GLAB_ARCH="arm64"
+    curl -sSfL \
+      "https://github.com/gitlab-org/cli/releases/download/${GLAB_VERSION}/glab_${GLAB_VERSION#v}_linux_${GLAB_ARCH}.tar.gz" |
+      tar -xz -C /tmp
+    sudo install -m 755 /tmp/bin/glab /usr/local/bin/glab
+    rm -rf /tmp/bin
+    ok "glab ${GLAB_VERSION} installed"
+  fi
 fi
 
 echo -e "\n${BOLD}${GREEN}Ops tools install complete!${RESET}\n"

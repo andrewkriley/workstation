@@ -8,6 +8,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DRY_RUN=false
 PROMPT_KEYS=false
+INTERACTIVE=true
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -34,10 +35,13 @@ for arg in "$@"; do
   case $arg in
     --dry-run) DRY_RUN=true ;;
     --prompt-keys) PROMPT_KEYS=true ;;
+    --select) INTERACTIVE=true ;;
+    --no-select) INTERACTIVE=false ;;
     --help)
-      echo "Usage: $0 [--dry-run] [--prompt-keys]"
+      echo "Usage: $0 [--dry-run] [--prompt-keys] [--no-select]"
       echo "  --dry-run      Show what would be done without making any changes"
       echo "  --prompt-keys  Interactively set API keys in ~/.config/riles-workstation/env.sh"
+      echo "  --no-select    Skip the component selection menu and install everything"
       exit 0
       ;;
   esac
@@ -112,6 +116,94 @@ prompt_api_keys() {
   ok "API keys written to $env_file"
 }
 
+# ── Selection menu ────────────────────────────────────────────────────────────
+# Each entry maps 1:1: MENU_LABELS[i] <-> MENU_KEYS[i] <-> MENU_SELECTED[i]
+MENU_LABELS=(
+  "System tools       (ripgrep, bat, fzf, eza, zoxide, jq, fnm, tmux)"
+  "AI tools           (uv, ~/ai-env, Ollama, Aider, llm CLI)"
+  "MCP servers        (Claude Code CLI, filesystem/GitHub/Playwright MCP)"
+  "Ops tools          (Docker, Open WebUI, lazygit, k9s, starship)"
+  "Dotfiles           (shell RC, env.sh, starship config)"
+  "Claude skills      (symlink skills to ~/.claude/skills)"
+  "Cursor rules       (symlink workflows to skills/cursor/rules)"
+  "API keys           (prompt for keys interactively)"
+)
+MENU_KEYS=(
+  "install-system.sh"
+  "install-ai.sh"
+  "install-mcp.sh"
+  "install-ops.sh"
+  "install-dotfiles.sh"
+  "_claude_skills"
+  "_cursor_rules"
+  "_api_keys"
+)
+# Default: all on except API keys (which require --prompt-keys or explicit selection)
+MENU_SELECTED=(1 1 1 1 1 1 1 0)
+
+show_menu() {
+  while true; do
+    echo -e "\n${BOLD}${CYAN}=== Select components ===${RESET}"
+    echo -e "  ${YELLOW}Note: package manager bootstrap always runs.${RESET}\n"
+    local i
+    for i in "${!MENU_LABELS[@]}"; do
+      local num=$((i + 1))
+      local mark
+      if [ "${MENU_SELECTED[$i]}" -eq 1 ]; then
+        mark="${GREEN}[x]${RESET}"
+      else
+        mark="[ ]"
+      fi
+      echo -e "  ${BOLD}${num}.${RESET} ${mark} ${MENU_LABELS[$i]}"
+    done
+    echo -e "\n  Toggle: enter number(s) separated by spaces (e.g. ${CYAN}2 4${RESET})"
+    echo -e "  ${CYAN}a${RESET} = select all   ${CYAN}n${RESET} = select none   ${CYAN}Enter${RESET} = confirm\n"
+    local input
+    read -r -p "> " input </dev/tty || input=""
+
+    case "$input" in
+      "")
+        break
+        ;;
+      a | A)
+        MENU_SELECTED=(1 1 1 1 1 1 1 1)
+        ;;
+      n | N)
+        MENU_SELECTED=(0 0 0 0 0 0 0 0)
+        ;;
+      *)
+        local token idx
+        for token in $input; do
+          if [[ "$token" =~ ^[0-9]+$ ]]; then
+            idx=$((token - 1))
+            if [ "$idx" -ge 0 ] && [ "$idx" -lt "${#MENU_SELECTED[@]}" ]; then
+              if [ "${MENU_SELECTED[$idx]}" -eq 1 ]; then
+                MENU_SELECTED[$idx]=0
+              else
+                MENU_SELECTED[$idx]=1
+              fi
+            else
+              warn "Invalid selection: $token"
+            fi
+          fi
+        done
+        ;;
+    esac
+  done
+}
+
+# Returns 1 if the given key was deselected in the menu, 0 otherwise
+is_selected() {
+  local key="$1"
+  local i
+  for i in "${!MENU_KEYS[@]}"; do
+    if [ "${MENU_KEYS[$i]}" = "$key" ]; then
+      return $(( 1 - MENU_SELECTED[$i] ))
+    fi
+  done
+  return 0
+}
+
 echo -e "${BOLD}riles-workstation setup${RESET}"
 echo -e "Repo:     $REPO_DIR"
 echo -e "Dry run:  $DRY_RUN"
@@ -149,13 +241,28 @@ case "$OS" in
     ;;
 esac
 
+# ── Selection menu (optional) ─────────────────────────────────────────────────
+if $INTERACTIVE; then
+  # Pre-tick API keys if --prompt-keys was also passed
+  if $PROMPT_KEYS; then
+    MENU_SELECTED[7]=1
+  fi
+  show_menu
+  # Sync PROMPT_KEYS with whatever the user selected in the menu
+  if [ "${MENU_SELECTED[7]}" -eq 1 ]; then
+    PROMPT_KEYS=true
+  else
+    PROMPT_KEYS=false
+  fi
+fi
+
 # ── API key prompting (optional) ──────────────────────────────────────────────
 if $PROMPT_KEYS; then
   prompt_api_keys
 fi
 
 # ── Run install modules ───────────────────────────────────────────────────────
-MODULES=(
+ALL_MODULES=(
   install-system.sh
   install-ai.sh
   install-mcp.sh
@@ -163,74 +270,90 @@ MODULES=(
   install-dotfiles.sh
 )
 
-section "Install Modules"
-TOTAL_MODULES=${#MODULES[@]}
-STEP=0
-for module in "${MODULES[@]}"; do
-  STEP=$((STEP + 1))
-  module_path="$REPO_DIR/dev-workstation-build/$module"
-  if [ -f "$module_path" ]; then
-    echo -e "\n${BOLD}[${STEP}/${TOTAL_MODULES}]${RESET} ${CYAN}${module}${RESET}"
-    if $DRY_RUN; then
-      bash "$module_path" --dry-run
-    else
-      bash "$module_path"
-    fi
-  else
-    echo -e "\n${BOLD}[${STEP}/${TOTAL_MODULES}]${RESET} ${CYAN}${module}${RESET}"
-    skip "$module (not yet implemented)"
+# Filter down to selected modules
+MODULES=()
+for m in "${ALL_MODULES[@]}"; do
+  if is_selected "$m"; then
+    MODULES+=("$m")
   fi
 done
 
-# ── Wire skills ───────────────────────────────────────────────────────────────
-section "Skills"
-
-CLAUDE_SKILLS_SRC="$REPO_DIR/skills/claude"
-CLAUDE_SKILLS_DEST="$HOME/.claude/skills"
-
-if $DRY_RUN; then
-  dryrun "Would create: $CLAUDE_SKILLS_DEST"
-  for skill_dir in "$CLAUDE_SKILLS_SRC"/*/; do
-    skill_name="$(basename "$skill_dir")"
-    dryrun "Would symlink: $CLAUDE_SKILLS_DEST/$skill_name -> $skill_dir"
-  done
-else
-  mkdir -p "$CLAUDE_SKILLS_DEST"
-  for skill_dir in "$CLAUDE_SKILLS_SRC"/*/; do
-    skill_name="$(basename "$skill_dir")"
-    target="$CLAUDE_SKILLS_DEST/$skill_name"
-    if [ -L "$target" ]; then
-      skip "Claude skill: $skill_name (symlink exists)"
-    elif [ -e "$target" ]; then
-      echo -e "${RED}[conflict]${RESET} $target exists and is not a symlink — skipping"
+if [ "${#MODULES[@]}" -gt 0 ]; then
+  section "Install Modules"
+  TOTAL_MODULES=${#MODULES[@]}
+  STEP=0
+  for module in "${MODULES[@]}"; do
+    STEP=$((STEP + 1))
+    module_path="$REPO_DIR/dev-workstation-build/$module"
+    if [ -f "$module_path" ]; then
+      echo -e "\n${BOLD}[${STEP}/${TOTAL_MODULES}]${RESET} ${CYAN}${module}${RESET}"
+      if $DRY_RUN; then
+        bash "$module_path" --dry-run
+      else
+        bash "$module_path"
+      fi
     else
-      ln -s "$skill_dir" "$target"
-      ok "Claude skill: $skill_name"
+      echo -e "\n${BOLD}[${STEP}/${TOTAL_MODULES}]${RESET} ${CYAN}${module}${RESET}"
+      skip "$module (not yet implemented)"
     fi
   done
 fi
 
-# ── Wire Cursor rules ─────────────────────────────────────────────────────────
-CURSOR_RULES_SRC="$REPO_DIR/skills/common/workflows"
-CURSOR_RULES_DEST="$REPO_DIR/skills/cursor/rules"
+# ── Wire skills ───────────────────────────────────────────────────────────────
+if is_selected "_claude_skills"; then
+  section "Claude Skills"
 
-if $DRY_RUN; then
-  for workflow in "$CURSOR_RULES_SRC"/*.md; do
-    name="$(basename "$workflow")"
-    dryrun "Would symlink: $CURSOR_RULES_DEST/$name -> $workflow"
-  done
-else
-  mkdir -p "$CURSOR_RULES_DEST"
-  for workflow in "$CURSOR_RULES_SRC"/*.md; do
-    name="$(basename "$workflow")"
-    target="$CURSOR_RULES_DEST/$name"
-    if [ -L "$target" ]; then
-      skip "Cursor rule: $name (symlink exists)"
-    else
-      ln -s "$workflow" "$target"
-      ok "Cursor rule: $name"
-    fi
-  done
+  CLAUDE_SKILLS_SRC="$REPO_DIR/skills/claude"
+  CLAUDE_SKILLS_DEST="$HOME/.claude/skills"
+
+  if $DRY_RUN; then
+    dryrun "Would create: $CLAUDE_SKILLS_DEST"
+    for skill_dir in "$CLAUDE_SKILLS_SRC"/*/; do
+      skill_name="$(basename "$skill_dir")"
+      dryrun "Would symlink: $CLAUDE_SKILLS_DEST/$skill_name -> $skill_dir"
+    done
+  else
+    mkdir -p "$CLAUDE_SKILLS_DEST"
+    for skill_dir in "$CLAUDE_SKILLS_SRC"/*/; do
+      skill_name="$(basename "$skill_dir")"
+      target="$CLAUDE_SKILLS_DEST/$skill_name"
+      if [ -L "$target" ]; then
+        skip "Claude skill: $skill_name (symlink exists)"
+      elif [ -e "$target" ]; then
+        echo -e "${RED}[conflict]${RESET} $target exists and is not a symlink — skipping"
+      else
+        ln -s "$skill_dir" "$target"
+        ok "Claude skill: $skill_name"
+      fi
+    done
+  fi
+fi
+
+# ── Wire Cursor rules ─────────────────────────────────────────────────────────
+if is_selected "_cursor_rules"; then
+  section "Cursor Rules"
+
+  CURSOR_RULES_SRC="$REPO_DIR/skills/common/workflows"
+  CURSOR_RULES_DEST="$REPO_DIR/skills/cursor/rules"
+
+  if $DRY_RUN; then
+    for workflow in "$CURSOR_RULES_SRC"/*.md; do
+      name="$(basename "$workflow")"
+      dryrun "Would symlink: $CURSOR_RULES_DEST/$name -> $workflow"
+    done
+  else
+    mkdir -p "$CURSOR_RULES_DEST"
+    for workflow in "$CURSOR_RULES_SRC"/*.md; do
+      name="$(basename "$workflow")"
+      target="$CURSOR_RULES_DEST/$name"
+      if [ -L "$target" ]; then
+        skip "Cursor rule: $name (symlink exists)"
+      else
+        ln -s "$workflow" "$target"
+        ok "Cursor rule: $name"
+      fi
+    done
+  fi
 fi
 
 # ── Summary ───────────────────────────────────────────────────────────────────
@@ -242,5 +365,8 @@ echo ""
 if ! $PROMPT_KEYS; then
   echo -e "  Next: run ${CYAN}./setup.sh --prompt-keys${RESET} to set API keys interactively"
   echo -e "        or edit ${CYAN}~/.config/riles-workstation/env.sh${RESET} directly"
+fi
+if ! $INTERACTIVE; then
+  echo -e "  Tip:  re-run without ${CYAN}--no-select${RESET} to use the component selection menu"
 fi
 echo ""

@@ -82,6 +82,63 @@ cd dev-workstation-build && ./install-ai.sh
 ./dev-workstation-build/audit.sh
 ```
 
+## Platform Differences: macOS vs Linux
+
+All platform branching is centralised in `lib/os.sh`. `detect_os()` returns one of `macos-arm | macos-intel | linux-x86 | linux-arm`. Modules source `lib/os.sh` and branch on `$OS` — they never call `uname` themselves.
+
+### setup.sh
+
+| Step | macOS | Linux |
+|------|-------|-------|
+| Bootstrap | Install Homebrew if missing (`ensure_brew`) | `apt-get update` |
+| `sed -i` | BSD sed requires `.bak` suffix — wrapped in `sed_i()` | GNU sed — same wrapper, `.bak` removed after |
+
+### install-system.sh
+
+| Tool | macOS | Linux |
+|------|-------|-------|
+| ripgrep, bat, fzf, jq, tmux | `brew install` (batch) | `apt-get install` (batch) |
+| bat binary | named `bat` | named `batcat` on Ubuntu; `~/.local/bin/bat → batcat` symlink created |
+| eza | `brew install` | Third-party apt repo (gierens.de) with GPG key |
+| zoxide | `brew install` | Upstream install script via curl |
+| yq | `brew install` | Binary download from GitHub releases; arch-mapped (`amd64`/`arm64`) |
+| fnm | `brew install` | Upstream install script via curl; added to `~/.local/share/fnm` |
+| Node LTS | `fnm install --lts` (after brew) | Same, but PATH must be set manually before fnm is on `$PATH` |
+
+### install-ai.sh
+
+| Step | macOS | Linux |
+|------|-------|-------|
+| Build deps | None needed | `apt-get install git-lfs clang build-essential python3-venv` |
+| PyTorch index | MPS (Apple Silicon) via `pyproject.toml` platform marker | CUDA via `pyproject.toml` platform marker |
+| Everything else (uv, ai-env, Ollama, Aider, llm) | Identical | Identical |
+
+### install-ops.sh
+
+| Tool | macOS | Linux |
+|------|-------|-------|
+| Docker | `brew install --cask docker` (Docker Desktop) | `get.docker.com` script; `usermod -aG docker $USER` (re-login needed) |
+| Docker Compose | Bundled with Docker Desktop | Downloaded separately from GitHub releases as CLI plugin |
+| Post-Docker | `open -a Docker` + 60s daemon wait | No wait needed (daemon starts automatically) |
+| lazygit | `brew install lazygit` | Binary tarball from GitHub releases; `sudo install` to `/usr/local/bin` |
+| k9s | `brew install k9s` | Binary tarball from GitHub releases; `sudo install` to `/usr/local/bin` |
+| starship | `curl` install script (same on both) | Same |
+
+### install-mcp.sh
+
+| Step | macOS | Linux |
+|------|-------|-------|
+| Node prerequisite | `fnm install --lts` via brew-managed fnm | fnm binary from `~/.local/share/fnm`; PATH must be exported first |
+| Everything else | Identical | Identical |
+
+### install-dotfiles.sh
+
+| Step | macOS | Linux |
+|------|-------|-------|
+| RC files targeted | `~/.zshrc`, `~/.bashrc`, `~/.bash_profile` | `~/.zshrc`, `~/.bashrc` only |
+| Reload hint | `source ~/.zshrc` | `source ~/.bashrc` |
+| All wiring (env.sh, PATH, aliases, fnm, zoxide, starship) | Identical | Identical |
+
 ## Deferred / Future
 
 - `codex/` skill format — not yet needed

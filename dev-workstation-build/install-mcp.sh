@@ -92,34 +92,12 @@ else
 fi
 
 # ── MCP server helper ─────────────────────────────────────────────────────────
-# Fetch registered MCP server list once and cache it
-MCP_LIST_CACHE=""
-get_mcp_list() {
-  if [ -z "$MCP_LIST_CACHE" ]; then
-    MCP_LIST_CACHE="$(timeout 10 claude mcp list 2>/dev/null || true)"
-  fi
-  echo "$MCP_LIST_CACHE"
-}
+# Check registration by reading config directly — avoids starting any server
+MCP_CFG="$HOME/.claude/settings.json"
 
 mcp_registered() {
   local name="$1"
-  get_mcp_list | grep -qi "$name"
-}
-
-add_mcp() {
-  local name="$1"
-  shift
-  if mcp_registered "$name"; then
-    skip "MCP: $name (already registered)"
-  elif $DRY_RUN; then
-    dryrun "Would run: claude mcp add $name --scope user $*"
-  else
-    log "Registering MCP server: $name"
-    claude mcp add "$name" --scope user "$@"
-    # Invalidate cache after mutation
-    MCP_LIST_CACHE=""
-    ok "MCP: $name registered"
-  fi
+  [ -f "$MCP_CFG" ] && grep -q "\"$name\"" "$MCP_CFG"
 }
 
 section "MCP Servers"
@@ -139,11 +117,9 @@ add_mcp_tracked() {
   else
     log "Registering MCP server: $name"
     if claude mcp add "$name" --scope user "$@" 2>/tmp/mcp_err_"$name"; then
-      MCP_LIST_CACHE=""
       ok "MCP: $name registered"
     else
       MCP_ERRORS+=("$name: $(cat /tmp/mcp_err_"$name" 2>/dev/null | head -1)")
-      MCP_LIST_CACHE=""
       echo -e "${YELLOW}[warn]${RESET} MCP: $name — registration failed (see summary below)"
     fi
   fi

@@ -1,10 +1,10 @@
 ---
 name: linkedin-post
-description: Draft and publish a LinkedIn post on behalf of Andrew Riley. Use when the user wants to share something on LinkedIn — a project, an insight, a win, a lesson learned, or a reaction to something in the industry.
+description: Draft and publish a LinkedIn post on behalf of the user. Use when the user wants to share something on LinkedIn — a project, an insight, a win, a lesson learned, or a reaction to something in the industry.
 argument-hint: [topic, project, or brief description]
 ---
 
-You are drafting a LinkedIn post for Andrew Riley.
+You are drafting a LinkedIn post for the user.
 
 ## Environment
 
@@ -21,7 +21,7 @@ If `LINKEDIN_TOKEN` is missing, stop and tell the user to run `$HOME/dev/claude/
 ## Author profile
 
 Read `$HOME/.claude/PROFILE.md` before writing. Key points for LinkedIn:
-- **Name:** Andrew Riley, Tech Lead / Architect based in Sydney, Australia
+- **Name/role:** (read from `$HOME/.claude/PROFILE.md`)
 - **Tone:** Enthusiastic and engaging — energetic, story-driven, opinionated. NOT corporate or stiff.
 - **Voice:** First-person, authentic, personal. Writes like a peer sharing something cool, not a brand publishing content.
 - **Themes:** Homelab, AI/LLMs, cloud infrastructure, GitOps, Home Assistant, DIY, family-driven motivation
@@ -38,7 +38,7 @@ If `$ARGUMENTS` is empty, ask the user **one question**: "What would you like to
 
 ### Step 1 — Understand the angle
 
-Identify the core insight, story, or value this post should convey. Good LinkedIn posts from Andrew have one of these angles:
+Identify the core insight, story, or value this post should convey. Good LinkedIn posts have one of these angles:
 - "Here's something I built and what I learned"
 - "Here's a problem I solved (and it was messier than expected)"
 - "Here's a hot take or strong opinion on [topic]"

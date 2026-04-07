@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup.sh — riles-workstation bootstrap
+# setup.sh — workstation bootstrap
 # Single entry point: installs tools and wires up skills for all agent tools.
 # Safe to re-run — idempotent throughout.
 
@@ -40,7 +40,7 @@ for arg in "$@"; do
     --help)
       echo "Usage: $0 [--dry-run] [--prompt-keys] [--no-select]"
       echo "  --dry-run      Show what would be done without making any changes"
-      echo "  --prompt-keys  Interactively set API keys in ~/.config/riles-workstation/env.sh"
+      echo "  --prompt-keys  Interactively set API keys in ~/.config/workstation/env.sh"
       echo "  --no-select    Skip the component selection menu and install everything"
       exit 0
       ;;
@@ -49,7 +49,7 @@ done
 
 # ── API key prompting ─────────────────────────────────────────────────────────
 prompt_api_keys() {
-  local env_file="$HOME/.config/riles-workstation/env.sh"
+  local env_file="$HOME/.config/workstation/env.sh"
   local template="$REPO_DIR/skills/common/env.sh.template"
 
   section "API Keys"
@@ -128,6 +128,7 @@ MENU_LABELS=(
   "Claude skills      (symlink skills to ~/.claude/skills)"
   "Cursor rules       (symlink workflows to skills/cursor/rules)"
   "API keys           (prompt for keys interactively)"
+  "CLI auth           (wire gh / glab / huggingface-cli via env.sh tokens)"
 )
 MENU_KEYS=(
   "install-system.sh"
@@ -139,9 +140,10 @@ MENU_KEYS=(
   "_claude_skills"
   "_cursor_rules"
   "_api_keys"
+  "_cli_auth"
 )
-# Default: all on except AI Python env and API keys (both are explicit opt-in)
-MENU_SELECTED=(1 1 0 1 1 1 1 1 0)
+# Default: none selected
+MENU_SELECTED=(0 0 0 0 0 0 0 0 0 0)
 
 show_menu() {
   while true; do
@@ -159,7 +161,7 @@ show_menu() {
       echo -e "  ${BOLD}${num}.${RESET} ${mark} ${MENU_LABELS[$i]}"
     done
     echo -e "\n  Toggle: enter number(s) separated by spaces (e.g. ${CYAN}2 4${RESET})"
-    echo -e "  ${CYAN}a${RESET} = select all   ${CYAN}n${RESET} = select none   ${CYAN}Enter${RESET} = confirm\n"
+    echo -e "  ${CYAN}a${RESET} = select all   ${CYAN}n${RESET} = select none   ${CYAN}Enter${RESET} = confirm   ${CYAN}q${RESET} = exit\n"
     local input
     read -r -p "> " input </dev/tty || input=""
 
@@ -167,11 +169,15 @@ show_menu() {
       "")
         break
         ;;
+      q | Q)
+        echo -e "\n${YELLOW}Exiting.${RESET}"
+        exit 0
+        ;;
       a | A)
-        MENU_SELECTED=(1 1 1 1 1 1 1 1 1)
+        MENU_SELECTED=(1 1 1 1 1 1 1 1 1 1)
         ;;
       n | N)
-        MENU_SELECTED=(0 0 0 0 0 0 0 0 0)
+        MENU_SELECTED=(0 0 0 0 0 0 0 0 0 0)
         ;;
       *)
         local token idx
@@ -206,7 +212,7 @@ is_selected() {
   return 0
 }
 
-echo -e "${BOLD}riles-workstation setup${RESET}"
+echo -e "${BOLD}workstation setup${RESET}"
 echo -e "Repo:     $REPO_DIR"
 echo -e "Dry run:  $DRY_RUN"
 echo -e "Date:     $(date)\n"
@@ -247,7 +253,7 @@ esac
 if $INTERACTIVE; then
   # Pre-tick API keys if --prompt-keys was also passed
   if $PROMPT_KEYS; then
-    MENU_SELECTED[7]=1
+    MENU_SELECTED[8]=1
   fi
   show_menu
   # Sync PROMPT_KEYS with whatever the user selected in the menu
@@ -304,6 +310,78 @@ if [ "${#MODULES[@]}" -gt 0 ]; then
     fi
   done
 fi
+
+# ── CLI auth wiring ───────────────────────────────────────────────────────────
+if is_selected "_cli_auth"; then
+section "CLI Auth"
+
+ENV_FILE="$HOME/.config/workstation/env.sh"
+
+# Re-source env.sh to pick up any token updates written by prompt_api_keys or
+# applied externally since the shell session started.
+if [ -f "$ENV_FILE" ]; then
+  # shellcheck source=/dev/null
+  source "$ENV_FILE" 2>/dev/null || true
+  log "Sourced $ENV_FILE"
+else
+  warn "$ENV_FILE not found — run './setup.sh --prompt-keys' to create it"
+fi
+
+# gh (GitHub CLI)
+if command -v gh &>/dev/null; then
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    if gh auth status &>/dev/null 2>&1; then
+      skip "gh auth (already authenticated)"
+    else
+      if $DRY_RUN; then
+        dryrun "Would authenticate gh via GITHUB_TOKEN"
+      else
+        echo "$GITHUB_TOKEN" | gh auth login --with-token
+        ok "gh authenticated via GITHUB_TOKEN"
+      fi
+    fi
+  else
+    skip "gh auth (GITHUB_TOKEN not set)"
+  fi
+fi
+
+# glab (GitLab CLI)
+if command -v glab &>/dev/null; then
+  if [ -n "${GITLAB_TOKEN:-}" ]; then
+    if glab auth status &>/dev/null 2>&1; then
+      skip "glab auth (already authenticated)"
+    else
+      if $DRY_RUN; then
+        dryrun "Would authenticate glab via GITLAB_TOKEN"
+      else
+        echo "$GITLAB_TOKEN" | glab auth login --stdin
+        ok "glab authenticated via GITLAB_TOKEN"
+      fi
+    fi
+  else
+    skip "glab auth (GITLAB_TOKEN not set)"
+  fi
+fi
+
+# huggingface-cli (Hugging Face Hub)
+if command -v huggingface-cli &>/dev/null; then
+  if [ -n "${HF_TOKEN:-}" ]; then
+    if huggingface-cli whoami &>/dev/null 2>&1; then
+      skip "huggingface-cli auth (already authenticated)"
+    else
+      if $DRY_RUN; then
+        dryrun "Would authenticate huggingface-cli via HF_TOKEN"
+      else
+        huggingface-cli login --token "$HF_TOKEN"
+        ok "huggingface-cli authenticated via HF_TOKEN"
+      fi
+    fi
+  else
+    skip "huggingface-cli auth (HF_TOKEN not set)"
+  fi
+fi
+
+fi # is_selected "_cli_auth"
 
 # ── Wire skills ───────────────────────────────────────────────────────────────
 if is_selected "_claude_skills"; then
@@ -370,7 +448,7 @@ fi
 echo ""
 if ! $PROMPT_KEYS; then
   echo -e "  Next: run ${CYAN}./setup.sh --prompt-keys${RESET} to set API keys interactively"
-  echo -e "        or edit ${CYAN}~/.config/riles-workstation/env.sh${RESET} directly"
+  echo -e "        or edit ${CYAN}~/.config/workstation/env.sh${RESET} directly"
 fi
 if ! $INTERACTIVE; then
   echo -e "  Tip:  re-run without ${CYAN}--no-select${RESET} to use the component selection menu"

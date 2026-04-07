@@ -1,6 +1,6 @@
-# riles-workstation
+# workstation
 
-Andrew Riley's personal workstation scaffold — a turnkey, idempotent setup for an AI-augmented development environment across Ubuntu and macOS.
+A turnkey, idempotent setup for an AI-augmented development environment across Ubuntu and macOS.
 
 **Focus areas:** agentic AI · AIOps · developer productivity · local LLM inference · MCP-based tool integration
 
@@ -56,7 +56,7 @@ Ubuntu (x86 + ARM) and macOS (Intel + Apple Silicon). All OS branching is centra
 
 ## API keys
 
-Generated at `~/.config/riles-workstation/env.sh` from `skills/common/env.sh.template` on first run. Fill in placeholders — file is never committed.
+Generated at `~/.config/workstation/env.sh` from `skills/common/env.sh.template` on first run. Fill in placeholders — file is never committed.
 
 ## Testing
 

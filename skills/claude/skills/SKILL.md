@@ -4,7 +4,7 @@ description: Lists all available Claude Code skills with descriptions and usage 
 argument-hint: [optional: filter keyword]
 ---
 
-You are listing all available Claude Code skills for Andrew Riley.
+You are listing all available Claude Code skills.
 
 Use the Glob tool to find all `SKILL.md` files under `~/.claude/skills/`, then Read each one to extract the `name:`, `description:`, and `argument-hint:` frontmatter fields.
 

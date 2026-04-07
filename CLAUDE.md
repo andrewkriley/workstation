@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Purpose
 
-Andrew Riley's personal workstation scaffold — a turnkey, idempotent setup for an AI-augmented development environment across Ubuntu and macOS. Focus areas: agentic AI, AIOps, developer productivity, local LLM inference, and MCP-based tool integration.
+Personal workstation scaffold — a turnkey, idempotent setup for an AI-augmented development environment across Ubuntu and macOS. Focus areas: agentic AI, AIOps, developer productivity, local LLM inference, and MCP-based tool integration.
 
 ## Agreed Architecture
 
@@ -15,7 +15,7 @@ Andrew Riley's personal workstation scaffold — a turnkey, idempotent setup for
 ├── setup.sh                        # Single entry point — bootstraps + orchestrates everything
 ├── skills/
 │   ├── common/                     # Single source of truth: PROFILE.md, DESIGN.md, env template, portable prompt workflows
-│   ├── claude/                     # Claude Code SKILL.md format (9 skills from andrewkriley/claude + common wrappers)
+│   ├── claude/                     # Claude Code SKILL.md format (9 skills from skills repo + common wrappers)
 │   ├── cursor/                     # Cursor rules — symlinks into common/ via setup.sh
 │   └── codex/                      # GitHub Copilot format — deferred, symlinks into common/
 └── dev-workstation-build/
@@ -39,13 +39,13 @@ Andrew Riley's personal workstation scaffold — a turnkey, idempotent setup for
 
 **Skills:** `common/` is the source of truth for portable prompt workflows. Tool dirs (`claude/`, `cursor/`) are consumers via absolute symlinks created by `setup.sh`. No duplication.
 
-**Skills source:** `andrewkriley/claude` (GitHub) was a one-time copy into `skills/claude/` — no ongoing sync dependency.
+**Skills source:** A one-time copy into `skills/claude/` — no ongoing sync dependency.
 
 **Python AI env:** `~/ai-env` (not project-local). Managed via `pyproject.toml` + `uv.lock`. `install-ai.sh` runs `uv venv ~/ai-env && uv sync`. PyTorch index URL is platform-conditional (CUDA on Linux, MPS on macOS ARM).
 
 **Ollama:** Native install only — Docker adds GPU overhead on macOS. Open WebUI runs via Docker (web app, different case).
 
-**Secrets:** Plaintext `~/.config/riles-workstation/env.sh` sourced from shell RC. Generated from template at install time with placeholder values and inline comments. `direnv` + encrypted secrets (`sops`/`age`) is a planned future upgrade.
+**Secrets:** Plaintext `~/.config/workstation/env.sh` sourced from shell RC. Generated from template at install time with placeholder values and inline comments. `direnv` + encrypted secrets (`sops`/`age`) is a planned future upgrade.
 
 **Portability:** All scripts use `#!/usr/bin/env bash`. Platform branching centralised in `lib/os.sh` — all modules source this, never branch on OS themselves.
 

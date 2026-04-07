@@ -4,7 +4,7 @@ description: Interview the user relentlessly about a plan, idea, or project unti
 argument-hint: [topic, plan, or project to explore]
 ---
 
-You are conducting a deep design interview with Andrew Riley about a plan, idea, or project.
+You are conducting a deep design interview with the user about a plan, idea, or project.
 
 ## Your approach
 

@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    paths:
+      - "**/*.sh"
+      - "dev-workstation-build/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "**/*.sh"
+      - "dev-workstation-build/**"
+      - ".github/workflows/ci.yml"
+
+jobs:
+  # ── Lint ──────────────────────────────────────────────────────────────────────
+
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    container: koalaman/shellcheck-alpine:stable
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck
+        run: find . -name "*.sh" -not -path "./.git/*" | xargs shellcheck --severity=warning
+
+  shfmt:
+    name: shfmt
+    runs-on: ubuntu-latest
+    container: alpine:latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shfmt
+        run: apk add --no-cache shfmt && find . -name "*.sh" -not -path "./.git/*" | xargs shfmt -d -i 2 -ci
+
+  # ── Test ──────────────────────────────────────────────────────────────────────
+
+  bats-linux:
+    name: bats (ubuntu-22.04)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install bats
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq bats
+      - name: Run bats tests
+        run: bats dev-workstation-build/tests/

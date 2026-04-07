@@ -1,7 +1,7 @@
 [project]
 name = "riles-ai-env"
 version = "0.1.0"
-description = "AI/ML Python environment for riles-workstation"
+description = "AI/ML Python environment for workstation"
 requires-python = ">=3.10"
 dependencies = [
     # Core ML

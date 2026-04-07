@@ -4,7 +4,7 @@ description: Summarises the current working session — what was worked on, what
 argument-hint: [optional: project name or focus area]
 ---
 
-You are summarising the current Claude Code working session for Andrew Riley.
+You are summarising the current Claude Code working session.
 
 ## Context gathering
 

@@ -4,7 +4,7 @@ description: Sends a short session update message to a Webex room. Searches for 
 argument-hint: [optional: topic or session focus]
 ---
 
-You are sending a Webex session update message on behalf of Andrew Riley.
+You are sending a Webex session update message on behalf of the user.
 
 ## Environment check
 
@@ -78,7 +78,7 @@ User's session focus (if provided): $ARGUMENTS
 ## Step 3 — Draft the message
 
 Write a short-medium Webex message (1–2 paragraphs) summarising the session. Style:
-- Conversational and direct — written as Andrew talking to teammates
+- Conversational and direct — written as the user talking to teammates
 - Lead with what was accomplished, not what was attempted
 - Mention specific files, features, or fixes where relevant
 - Close with what's next or what's pending if applicable

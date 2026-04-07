@@ -1,9 +1,7 @@
-# User Profile — Andrew Riley
+# User Profile
 
 ## Identity
 
-- **Name:** Andrew Riley
-- **Username:** andreril
 - **Location:** Ryde, Sydney, NSW, Australia
 - **Blog:** [andrewriley.info](https://andrewriley.info) (Hugo)
 - **Role:** Tech Lead / Architect

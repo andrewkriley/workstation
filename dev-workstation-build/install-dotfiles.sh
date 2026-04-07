@@ -76,11 +76,11 @@ append_to_rc() {
 # ── env.sh — secrets and API keys ────────────────────────────────────────────
 section "Environment Config (env.sh)"
 
-ENV_FILE="$HOME/.config/riles-workstation/env.sh"
+ENV_FILE="$HOME/.config/workstation/env.sh"
 ENV_TEMPLATE="$REPO_DIR/skills/common/env.sh.template"
 
 if [ -f "$ENV_FILE" ]; then
-  skip "$HOME/.config/riles-workstation/env.sh (already exists)"
+  skip "$HOME/.config/workstation/env.sh (already exists)"
 elif $DRY_RUN; then
   dryrun "Would create $ENV_FILE from template"
 else
@@ -99,9 +99,9 @@ fi
 # Wire env.sh sourcing into each shell RC
 for rc in "${RC_FILES[@]}"; do
   append_to_rc "$rc" \
-    "riles-workstation/env.sh" \
-    "# riles-workstation — API keys and environment
-[ -f \"\$HOME/.config/riles-workstation/env.sh\" ] && source \"\$HOME/.config/riles-workstation/env.sh\"" \
+    "workstation/env.sh" \
+    "# workstation — API keys and environment
+[ -f \"\$HOME/.config/workstation/env.sh\" ] && source \"\$HOME/.config/workstation/env.sh\"" \
     "env.sh source"
 done
 
@@ -201,7 +201,7 @@ eval "$(starship init bash)"' \
     else
       mkdir -p "$(dirname "$STARSHIP_CFG")"
       cat >"$STARSHIP_CFG" <<'TOML'
-# starship.toml — riles-workstation default
+# starship.toml — workstation default
 # Docs: https://starship.rs/config/
 
 # Left prompt: path → git → python → character
@@ -268,5 +268,5 @@ if [[ "$OS" == macos-* ]]; then
 else
   echo -e "  Reload your shell or run: ${CYAN}source ~/.bashrc${RESET}"
 fi
-echo -e "  Set API keys in:          ${CYAN}~/.config/riles-workstation/env.sh${RESET}"
+echo -e "  Set API keys in:          ${CYAN}~/.config/workstation/env.sh${RESET}"
 echo ""

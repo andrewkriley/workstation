@@ -1,0 +1,24 @@
+name: Security
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"  # weekly on Monday
+
+jobs:
+  # ── Secret Detection ──────────────────────────────────────────────────────────
+  # Equivalent to GitLab's Secret-Detection.gitlab-ci.yml template.
+  # Note: SAST for shell scripts is covered by shellcheck in ci.yml.
+
+  secret-detection:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

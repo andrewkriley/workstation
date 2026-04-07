@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
 # audit.sh — Applied AI Developer Workstation Audit
 # Reports what's installed, what's missing, and what version.
+# Options:
+#   --validate-auth   Make live API calls to verify configured service tokens
 
 set -euo pipefail
+
+# ── Flag parsing ───────────────────────────────────────────────────────────────
+VALIDATE_AUTH=false
+for _arg in "$@"; do
+  case "$_arg" in
+    --validate-auth) VALIDATE_AUTH=true ;;
+  esac
+done
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -47,11 +57,22 @@ echo -e "${BOLD}Applied AI Developer Workstation Audit${RESET}"
 echo -e "Date: $(date)"
 echo -e "Host: $(hostname)"
 
+# Inline OS detection — audit.sh is meant to be run standalone
+_AUDIT_OS="linux"
+[[ "$(uname)" == "Darwin" ]] && _AUDIT_OS="macos"
+
 # ── System Resources ──────────────────────────────────────────────────────────
 section "System Resources"
-echo "  CPU:  $(lscpu 2>/dev/null | grep 'Model name' | sed 's/Model name:[ ]*//' || echo 'unknown')"
-echo "  Cores: $(nproc)"
-echo "  RAM:  $(free -h | awk '/^Mem:/ {print $2 " total, " $7 " available"}')"
+if [ "$_AUDIT_OS" = "macos" ]; then
+  echo "  CPU:  $(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo 'unknown')"
+  echo "  Cores: $(sysctl -n hw.ncpu 2>/dev/null || echo 'unknown')"
+  _mem_bytes=$(sysctl -n hw.memsize 2>/dev/null || echo 0)
+  echo "  RAM:  $(( _mem_bytes / 1024 / 1024 / 1024 ))GB total"
+else
+  echo "  CPU:  $(lscpu 2>/dev/null | grep 'Model name' | sed 's/Model name:[ ]*//' || echo 'unknown')"
+  echo "  Cores: $(nproc 2>/dev/null || echo 'unknown')"
+  echo "  RAM:  $(free -h 2>/dev/null | awk '/^Mem:/ {print $2 " total, " $7 " available"}' || echo 'unknown')"
+fi
 echo "  Disk: $(df -h / | awk 'NR==2 {print $4 " free of " $2}')"
 
 # ── GPU ───────────────────────────────────────────────────────────────────────
@@ -141,11 +162,11 @@ check_cmd "Cursor" cursor "--version"
 # ── Environment Config (env.sh) ───────────────────────────────────────────────
 section "Environment Config (env.sh)"
 
-ENV_FILE="$HOME/.config/riles-workstation/env.sh"
+ENV_FILE="$HOME/.config/workstation/env.sh"
 
 if [ -f "$ENV_FILE" ]; then
   ok "env.sh exists: $ENV_FILE"
-  chmod_val=$(stat -c '%a' "$ENV_FILE" 2>/dev/null || stat -f '%A' "$ENV_FILE" 2>/dev/null || echo "unknown")
+  chmod_val=$(stat -c '%a' "$ENV_FILE" 2>/dev/null || stat -f '%OLp' "$ENV_FILE" 2>/dev/null || echo "unknown")
   if [ "$chmod_val" = "600" ]; then
     ok "env.sh permissions: 600 (private)"
   else
@@ -196,7 +217,7 @@ if [ -f "$ENV_FILE" ]; then
   echo "  Shell RC wiring:"
   for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.bash_profile"; do
     [ -f "$rc" ] || continue
-    if grep -qF "riles-workstation/env.sh" "$rc"; then
+    if grep -qF "workstation/env.sh" "$rc"; then
       ok "Sourced in $rc"
     else
       warn "Not sourced in $rc — run: ./install-dotfiles.sh"
@@ -204,6 +225,83 @@ if [ -f "$ENV_FILE" ]; then
   done
 else
   missing "env.sh not found at $ENV_FILE — run: ./install-dotfiles.sh"
+fi
+
+# ── Auth Validation ───────────────────────────────────────────────────────────
+if [ "$VALIDATE_AUTH" = "true" ]; then
+  section "Auth Validation"
+
+  _env_file="$HOME/.config/workstation/env.sh"
+  if [ -f "$_env_file" ]; then
+    # shellcheck source=/dev/null
+    source "$_env_file" 2>/dev/null || true
+  else
+    warn "env.sh not found — cannot validate auth"
+  fi
+
+  _check_auth() {
+    local name="$1" url="$2" header="$3" extra_flags="${4:-}"
+    local status
+    # shellcheck disable=SC2086
+    status=$(curl -s -o /dev/null -w "%{http_code}" -H "$header" $extra_flags "$url" 2>/dev/null) || {
+      warn "$name: connection failed"
+      return
+    }
+    if [ "$status" = "200" ]; then
+      ok "$name: authenticated"
+    else
+      warn "$name: auth failed (HTTP $status)"
+    fi
+  }
+
+  echo ""
+  echo "  API Keys:"
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    _check_auth "GitHub" "https://api.github.com/user" "Authorization: token $GITHUB_TOKEN"
+  else
+    warn "GitHub: GITHUB_TOKEN not set, skipping"
+  fi
+  if [ -n "${HF_TOKEN:-}" ]; then
+    _check_auth "HuggingFace" "https://huggingface.co/api/whoami" "Authorization: Bearer $HF_TOKEN"
+  else
+    warn "HuggingFace: HF_TOKEN not set, skipping"
+  fi
+
+  echo ""
+  echo "  LinkedIn:"
+  if [ -n "${LINKEDIN_TOKEN:-}" ]; then
+    _check_auth "LinkedIn" "https://api.linkedin.com/v2/userinfo" "Authorization: Bearer $LINKEDIN_TOKEN"
+  else
+    warn "LinkedIn: LINKEDIN_TOKEN not set, skipping"
+  fi
+
+  echo ""
+  echo "  Webex:"
+  if [ -n "${WEBEX_TOKEN:-}" ]; then
+    _check_auth "Webex" "https://webexapis.com/v1/people/me" "Authorization: Bearer $WEBEX_TOKEN"
+  else
+    warn "Webex: WEBEX_TOKEN not set, skipping"
+  fi
+
+  echo ""
+  echo "  Splunk:"
+  _splunk_token="${SPLUNK_TOKEN:-${SPLUNK_API_TOKEN:-}}"
+  if [ -n "${SPLUNK_HOST:-}" ] && [ -n "$_splunk_token" ]; then
+    _check_auth "Splunk (token)" \
+      "https://${SPLUNK_HOST}:8089/services/authentication/current-context?output_mode=json" \
+      "Authorization: Bearer $_splunk_token" "-k"
+  elif [ -n "${SPLUNK_HOST:-}" ] && [ -n "${SPLUNK_USER:-}" ] && [ -n "${SPLUNK_PASS:-}" ]; then
+    _splunk_status=$(curl -s -o /dev/null -w "%{http_code}" -k \
+      -u "${SPLUNK_USER}:${SPLUNK_PASS}" \
+      "https://${SPLUNK_HOST}:8089/services/authentication/current-context?output_mode=json" 2>/dev/null) || _splunk_status="000"
+    if [ "$_splunk_status" = "200" ]; then
+      ok "Splunk (basic auth): authenticated"
+    else
+      warn "Splunk (basic auth): auth failed (HTTP $_splunk_status)"
+    fi
+  else
+    warn "Splunk: credentials not set, skipping"
+  fi
 fi
 
 echo -e "\n${BOLD}Audit complete.${RESET} Run ${CYAN}./install.sh${RESET} to install missing components.\n"

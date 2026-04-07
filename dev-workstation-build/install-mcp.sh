@@ -151,7 +151,7 @@ if [ ${#MCP_ERRORS[@]} -gt 0 ]; then
     echo -e "    ${YELLOW}✘${RESET} $err"
   done
   echo ""
-  echo -e "  ${CYAN}Tip:${RESET} Set required env vars in ~/.config/riles-workstation/env.sh:"
+  echo -e "  ${CYAN}Tip:${RESET} Set required env vars in ~/.config/workstation/env.sh:"
   echo -e "    • ${CYAN}GITHUB_TOKEN${RESET}   — GitHub fine-grained PAT"
   echo -e "    • ${CYAN}BRAVE_API_KEY${RESET}  — Brave Search API key"
   echo -e "  Then re-run: ${CYAN}./install-mcp.sh${RESET}"
@@ -159,7 +159,7 @@ else
   echo ""
   echo -e "${BOLD}${GREEN}All MCP servers registered successfully.${RESET}"
   echo ""
-  echo -e "  Required env vars in ~/.config/riles-workstation/env.sh:"
+  echo -e "  Required env vars in ~/.config/workstation/env.sh:"
   echo -e "    • ${CYAN}GITHUB_TOKEN${RESET}   — GitHub fine-grained PAT"
   echo -e "    • ${CYAN}BRAVE_API_KEY${RESET}  — Brave Search API key"
 fi

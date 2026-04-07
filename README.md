@@ -28,6 +28,9 @@ A turnkey, idempotent setup for an AI-augmented development environment across U
 │   ├── cursor/                     # Cursor rules — symlinked from common/ by setup.sh
 │   └── codex/                      # GitHub Copilot format — deferred
 └── dev-workstation-build/
+    ├── install.sh                  # Orchestrator — calls modules in dependency order
+    ├── pyproject.toml              # AI/ML Python packages (uv-managed)
+    ├── uv.lock                     # Platform-conditional lockfile
     ├── lib/os.sh                   # detect_os() → macos-arm | macos-intel | linux-x86 | linux-arm
     ├── install-system.sh           # apt/brew: ripgrep, bat, fzf, eza, zoxide, jq, yq, fnm, tmux
     ├── install-ai.sh               # uv, ~/ai-env, Ollama (native), Aider, llm CLI, faster-whisper

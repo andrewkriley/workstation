@@ -23,13 +23,13 @@ section() { echo -e "\n${BOLD}${CYAN}=== $1 ===${RESET}"; }
 dryrun() { echo -e "${YELLOW}[dry-run]${RESET} $1"; }
 
 for arg in "$@"; do
-	case $arg in
-	--dry-run) DRY_RUN=true ;;
-	--help)
-		echo "Usage: $0 [--dry-run]"
-		exit 0
-		;;
-	esac
+  case $arg in
+    --dry-run) DRY_RUN=true ;;
+    --help)
+      echo "Usage: $0 [--dry-run]"
+      exit 0
+      ;;
+  esac
 done
 
 # shellcheck source=lib/os.sh
@@ -47,30 +47,30 @@ RC_FILES=()
 [ -f "$HOME/.bash_profile" ] && [[ "$OS" == macos-* ]] && RC_FILES+=("$HOME/.bash_profile")
 
 if [ ${#RC_FILES[@]} -eq 0 ]; then
-	log "No shell RC files found — creating ~/.bashrc"
-	if ! $DRY_RUN; then
-		touch "$HOME/.bashrc"
-		RC_FILES+=("$HOME/.bashrc")
-	fi
+  log "No shell RC files found — creating ~/.bashrc"
+  if ! $DRY_RUN; then
+    touch "$HOME/.bashrc"
+    RC_FILES+=("$HOME/.bashrc")
+  fi
 fi
 
 log "Shell RC files: ${RC_FILES[*]}"
 
 # Helper: append a block to a RC file if a guard string is not already present
 append_to_rc() {
-	local rc_file="$1"
-	local guard="$2" # grep pattern — if found, skip
-	local block="$3" # text to append
-	local label="$4" # human-readable label for output
+  local rc_file="$1"
+  local guard="$2" # grep pattern — if found, skip
+  local block="$3" # text to append
+  local label="$4" # human-readable label for output
 
-	if grep -qF "$guard" "$rc_file" 2>/dev/null; then
-		skip "$label ($rc_file)"
-	elif $DRY_RUN; then
-		dryrun "Would append $label to $rc_file"
-	else
-		printf '\n%s\n' "$block" >>"$rc_file"
-		ok "$label → $rc_file"
-	fi
+  if grep -qF "$guard" "$rc_file" 2>/dev/null; then
+    skip "$label ($rc_file)"
+  elif $DRY_RUN; then
+    dryrun "Would append $label to $rc_file"
+  else
+    printf '\n%s\n' "$block" >>"$rc_file"
+    ok "$label → $rc_file"
+  fi
 }
 
 # ── env.sh — secrets and API keys ────────────────────────────────────────────
@@ -80,127 +80,127 @@ ENV_FILE="$HOME/.config/workstation/env.sh"
 ENV_TEMPLATE="$REPO_DIR/skills/common/env.sh.template"
 
 if [ -f "$ENV_FILE" ]; then
-	skip "$HOME/.config/workstation/env.sh (already exists)"
+  skip "$HOME/.config/workstation/env.sh (already exists)"
 elif $DRY_RUN; then
-	dryrun "Would create $ENV_FILE from template"
+  dryrun "Would create $ENV_FILE from template"
 else
-	mkdir -p "$(dirname "$ENV_FILE")"
-	if [ -f "$ENV_TEMPLATE" ]; then
-		cp "$ENV_TEMPLATE" "$ENV_FILE"
-		log "Created $ENV_FILE from template"
-	else
-		touch "$ENV_FILE"
-		log "Created empty $ENV_FILE (template not found at $ENV_TEMPLATE)"
-	fi
-	chmod 600 "$ENV_FILE"
-	ok "env.sh created — edit $ENV_FILE to add your API keys"
+  mkdir -p "$(dirname "$ENV_FILE")"
+  if [ -f "$ENV_TEMPLATE" ]; then
+    cp "$ENV_TEMPLATE" "$ENV_FILE"
+    log "Created $ENV_FILE from template"
+  else
+    touch "$ENV_FILE"
+    log "Created empty $ENV_FILE (template not found at $ENV_TEMPLATE)"
+  fi
+  chmod 600 "$ENV_FILE"
+  ok "env.sh created — edit $ENV_FILE to add your API keys"
 fi
 
 # Wire env.sh sourcing into each shell RC
 for rc in "${RC_FILES[@]}"; do
-	append_to_rc "$rc" \
-		"workstation/env.sh" \
-		"# workstation — API keys and environment
+  append_to_rc "$rc" \
+    "workstation/env.sh" \
+    "# workstation — API keys and environment
 [ -f \"\$HOME/.config/workstation/env.sh\" ] && source \"\$HOME/.config/workstation/env.sh\"" \
-		"env.sh source"
+    "env.sh source"
 done
 
 # ── PATH — ~/.local/bin ───────────────────────────────────────────────────────
 section "PATH — ~/.local/bin"
 for rc in "${RC_FILES[@]}"; do
-	append_to_rc "$rc" \
-		'.local/bin' \
-		'# ~/.local/bin on PATH (zoxide, yq, bat alias, uv tools)
+  append_to_rc "$rc" \
+    '.local/bin' \
+    '# ~/.local/bin on PATH (zoxide, yq, bat alias, uv tools)
 export PATH="$HOME/.local/bin:$PATH"' \
-		"$HOME/.local/bin PATH"
+    "$HOME/.local/bin PATH"
 done
 
 # ── PATH — uv tools ───────────────────────────────────────────────────────────
 section "PATH — uv tools (~/.cargo/bin)"
 for rc in "${RC_FILES[@]}"; do
-	append_to_rc "$rc" \
-		'.cargo/bin' \
-		'# uv tools (aider, llm, etc.)
+  append_to_rc "$rc" \
+    '.cargo/bin' \
+    '# uv tools (aider, llm, etc.)
 export PATH="$HOME/.cargo/bin:$PATH"' \
-		"uv tools PATH"
+    "uv tools PATH"
 done
 
 # ── ai-env alias ─────────────────────────────────────────────────────────────
 section "ai-env Alias"
 VENV_DIR="$HOME/ai-env"
 for rc in "${RC_FILES[@]}"; do
-	append_to_rc "$rc" \
-		"alias ai-env=" \
-		"# Activate AI/ML Python environment
+  append_to_rc "$rc" \
+    "alias ai-env=" \
+    "# Activate AI/ML Python environment
 alias ai-env='source $VENV_DIR/bin/activate'" \
-		"ai-env alias"
+    "ai-env alias"
 done
 
 # ── fnm (Fast Node Manager) ───────────────────────────────────────────────────
 section "fnm Shell Integration"
 if command -v fnm &>/dev/null || [ -f "$HOME/.local/share/fnm/fnm" ]; then
-	for rc in "${RC_FILES[@]}"; do
-		append_to_rc "$rc" \
-			'fnm env' \
-			'# fnm — Fast Node Manager
+  for rc in "${RC_FILES[@]}"; do
+    append_to_rc "$rc" \
+      'fnm env' \
+      '# fnm — Fast Node Manager
 export PATH="$HOME/.local/share/fnm:$PATH"
 eval "$(fnm env --use-on-cd 2>/dev/null)" || true' \
-			"fnm env"
-	done
+      "fnm env"
+  done
 else
-	skip "fnm not installed — skipping shell integration"
+  skip "fnm not installed — skipping shell integration"
 fi
 
 # ── zoxide ────────────────────────────────────────────────────────────────────
 section "zoxide Shell Integration"
 if command -v zoxide &>/dev/null; then
-	for rc in "${RC_FILES[@]}"; do
-		# Detect shell type from filename
-		if [[ "$rc" == *zshrc ]]; then
-			append_to_rc "$rc" \
-				'zoxide init' \
-				'# zoxide — smarter cd
+  for rc in "${RC_FILES[@]}"; do
+    # Detect shell type from filename
+    if [[ "$rc" == *zshrc ]]; then
+      append_to_rc "$rc" \
+        'zoxide init' \
+        '# zoxide — smarter cd
 eval "$(zoxide init zsh)"' \
-				"zoxide init (zsh)"
-		else
-			append_to_rc "$rc" \
-				'zoxide init' \
-				'# zoxide — smarter cd
+        "zoxide init (zsh)"
+    else
+      append_to_rc "$rc" \
+        'zoxide init' \
+        '# zoxide — smarter cd
 eval "$(zoxide init bash)"' \
-				"zoxide init (bash)"
-		fi
-	done
+        "zoxide init (bash)"
+    fi
+  done
 else
-	skip "zoxide not installed — skipping shell integration"
+  skip "zoxide not installed — skipping shell integration"
 fi
 
 # ── starship prompt ───────────────────────────────────────────────────────────
 section "Starship Prompt"
 if command -v starship &>/dev/null; then
-	for rc in "${RC_FILES[@]}"; do
-		if [[ "$rc" == *zshrc ]]; then
-			append_to_rc "$rc" \
-				'starship init' \
-				'# starship prompt
+  for rc in "${RC_FILES[@]}"; do
+    if [[ "$rc" == *zshrc ]]; then
+      append_to_rc "$rc" \
+        'starship init' \
+        '# starship prompt
 eval "$(starship init zsh)"' \
-				"starship init (zsh)"
-		else
-			append_to_rc "$rc" \
-				'starship init' \
-				'# starship prompt
+        "starship init (zsh)"
+    else
+      append_to_rc "$rc" \
+        'starship init' \
+        '# starship prompt
 eval "$(starship init bash)"' \
-				"starship init (bash)"
-		fi
-	done
+        "starship init (bash)"
+    fi
+  done
 
-	# Minimal starship config if none exists
-	STARSHIP_CFG="$HOME/.config/starship.toml"
-	if [ ! -f "$STARSHIP_CFG" ]; then
-		if $DRY_RUN; then
-			dryrun "Would create $STARSHIP_CFG"
-		else
-			mkdir -p "$(dirname "$STARSHIP_CFG")"
-			cat >"$STARSHIP_CFG" <<'TOML'
+  # Minimal starship config if none exists
+  STARSHIP_CFG="$HOME/.config/starship.toml"
+  if [ ! -f "$STARSHIP_CFG" ]; then
+    if $DRY_RUN; then
+      dryrun "Would create $STARSHIP_CFG"
+    else
+      mkdir -p "$(dirname "$STARSHIP_CFG")"
+      cat >"$STARSHIP_CFG" <<'TOML'
 # starship.toml — workstation default
 # Docs: https://starship.rs/config/
 
@@ -252,21 +252,21 @@ time_format = "%H:%M"
 format      = '[$time]($style) '
 style       = "dimmed white"
 TOML
-			ok "Minimal starship config created at $STARSHIP_CFG"
-		fi
-	else
-		skip "starship.toml (already exists)"
-	fi
+      ok "Minimal starship config created at $STARSHIP_CFG"
+    fi
+  else
+    skip "starship.toml (already exists)"
+  fi
 else
-	skip "starship not installed — skipping shell integration"
+  skip "starship not installed — skipping shell integration"
 fi
 
 echo -e "\n${BOLD}${GREEN}Dotfiles wired!${RESET}"
 echo ""
 if [[ "$OS" == macos-* ]]; then
-	echo -e "  Reload your shell or run: ${CYAN}source ~/.zshrc${RESET}"
+  echo -e "  Reload your shell or run: ${CYAN}source ~/.zshrc${RESET}"
 else
-	echo -e "  Reload your shell or run: ${CYAN}source ~/.bashrc${RESET}"
+  echo -e "  Reload your shell or run: ${CYAN}source ~/.bashrc${RESET}"
 fi
 echo -e "  Set API keys in:          ${CYAN}~/.config/workstation/env.sh${RESET}"
 echo ""

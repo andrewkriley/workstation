@@ -124,6 +124,7 @@ MENU_LABELS=(
   "AI Python env      (~/ai-env — uv sync, ML packages; opt-in)"
   "MCP servers        (Claude Code CLI, filesystem/GitHub/Playwright MCP)"
   "Docker             (Docker Engine + Compose, Open WebUI)"
+  "Cloud CLIs         (AWS CLI, Google Cloud SDK)"
   "Ops tools          (lazygit, k9s, starship, gh, glab, terraform, ansible, kubectl, helm)"
   "Dotfiles           (shell RC, env.sh, starship config)"
   "Claude skills      (symlink skills to ~/.claude/skills)"
@@ -137,6 +138,7 @@ MENU_KEYS=(
   "_ai_env"
   "install-mcp.sh"
   "install-docker.sh"
+  "install-cloud.sh"
   "install-ops.sh"
   "install-dotfiles.sh"
   "_claude_skills"
@@ -145,7 +147,7 @@ MENU_KEYS=(
   "_cli_auth"
 )
 # Default: none selected
-MENU_SELECTED=(0 0 0 0 0 0 0 0 0 0 0)
+MENU_SELECTED=(0 0 0 0 0 0 0 0 0 0 0 0)
 
 show_menu() {
   while true; do
@@ -176,10 +178,10 @@ show_menu() {
         exit 0
         ;;
       a | A)
-        MENU_SELECTED=(1 1 1 1 1 1 1 1 1 1)
+        MENU_SELECTED=(1 1 1 1 1 1 1 1 1 1 1 1)
         ;;
       n | N)
-        MENU_SELECTED=(0 0 0 0 0 0 0 0 0 0)
+        MENU_SELECTED=(0 0 0 0 0 0 0 0 0 0 0 0)
         ;;
       *)
         local token idx
@@ -255,11 +257,11 @@ esac
 if $INTERACTIVE; then
   # Pre-tick API keys if --prompt-keys was also passed
   if $PROMPT_KEYS; then
-    MENU_SELECTED[8]=1
+    MENU_SELECTED[10]=1
   fi
   show_menu
   # Sync PROMPT_KEYS with whatever the user selected in the menu
-  if [ "${MENU_SELECTED[8]}" -eq 1 ]; then
+  if [ "${MENU_SELECTED[10]}" -eq 1 ]; then
     PROMPT_KEYS=true
   else
     PROMPT_KEYS=false
@@ -277,6 +279,7 @@ ALL_MODULES=(
   install-ai.sh
   install-mcp.sh
   install-docker.sh
+  install-cloud.sh
   install-ops.sh
   install-dotfiles.sh
 )

@@ -28,8 +28,8 @@ Personal workstation scaffold — a turnkey, idempotent setup for an AI-augmente
     ├── install-ai.sh               # uv, ~/ai-env via uv sync, Ollama (native), Aider, llm CLI, faster-whisper
     ├── install-mcp.sh              # Claude Code CLI, filesystem/GitHub/Playwright/Brave Search MCP servers
     ├── install-docker.sh           # Docker Engine + Compose plugin, Open WebUI (Docker)
-    ├── install-ops.sh              # lazygit, k9s, starship, gh, glab, terraform, ansible, kubectl, helm
-    ├── install-dotfiles.sh         # Shell RC wiring, env.sh from template, starship config
+    ├── install-ops.sh              # lazygit, k9s, gh, glab, terraform, ansible, kubectl, helm
+    ├── install-dotfiles.sh         # Shell RC wiring, env.sh from template, tmux config + auto-start
     ├── audit.sh                    # Read-only environment inventory
     └── tests/                      # bats unit tests — one file per module
 ```
@@ -129,7 +129,6 @@ All platform branching is centralised in `lib/os.sh`. `detect_os()` returns one 
 |------|-------|-------|
 | lazygit | `brew install lazygit` | Binary tarball from GitHub releases; `sudo install` to `/usr/local/bin` |
 | k9s | `brew install k9s` | Binary tarball from GitHub releases; `sudo install` to `/usr/local/bin` |
-| starship | `curl` install script (same on both) | Same |
 | Terraform | `brew install hashicorp/tap/terraform` | HashiCorp apt repo |
 | Ansible | `brew install ansible` | PPA (`ppa:ansible/ansible`) via apt |
 | kubectl | `brew install kubectl` | Binary download from `dl.k8s.io` |
@@ -148,7 +147,8 @@ All platform branching is centralised in `lib/os.sh`. `detect_os()` returns one 
 |------|-------|-------|
 | RC files targeted | `~/.zshrc`, `~/.bashrc`, `~/.bash_profile` | `~/.zshrc`, `~/.bashrc` only |
 | Reload hint | `source ~/.zshrc` | `source ~/.bashrc` |
-| All wiring (env.sh, PATH, aliases, fnm, zoxide, starship) | Identical | Identical |
+| All wiring (env.sh, PATH, aliases, fnm, zoxide, tmux config + auto-start) | Identical | Identical |
+| tmux auto-start | Skips IDE/embedded terminals (vscode/kiro/cursor/Antigravity/JetBrains) | Same |
 
 ## Deferred / Future
 

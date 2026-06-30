@@ -37,8 +37,8 @@ A turnkey, idempotent setup for an AI-augmented development environment across U
     ├── install-ai.sh               # uv, ~/ai-env, Ollama (native), Aider, llm CLI, faster-whisper
     ├── install-mcp.sh              # Claude Code CLI, filesystem/GitHub/Playwright/Brave Search MCPs
     ├── install-docker.sh           # Docker Engine + Compose plugin, Open WebUI (Docker)
-    ├── install-ops.sh              # lazygit, k9s, starship, gh, glab, terraform, ansible, kubectl, helm
-    ├── install-dotfiles.sh         # Shell RC wiring, env.sh from template
+    ├── install-ops.sh              # lazygit, k9s, gh, glab, terraform, ansible, kubectl, helm
+    ├── install-dotfiles.sh         # Shell RC wiring, env.sh, tmux config + auto-start
     ├── audit.sh                    # Read-only environment inventory
     └── tests/                      # bats unit tests
 ```

@@ -56,7 +56,10 @@ fi
 
 log "Shell RC files: ${RC_FILES[*]}"
 
-# Helper: append a block to a RC file if a guard string is not already present
+# Helper: append a block to a RC file if a guard string is not already present.
+# Add-once semantics — never rewrites an existing match. Use this for blocks a
+# user may have hand-rolled their own version of (e.g. the shell prompt), where
+# clobbering would be unwelcome.
 append_to_rc() {
   local rc_file="$1"
   local guard="$2" # grep pattern — if found, skip
@@ -72,6 +75,99 @@ append_to_rc() {
     ok "$label → $rc_file"
   fi
 }
+
+# Helper: keep a workstation-managed block in sync with desired content.
+# Blocks we own are wrapped in sentinel markers keyed by an id, so edits to the
+# block actually propagate on re-run (the original append_to_rc skips forever
+# once its guard matches, so changed content never lands on an existing machine):
+#   - markers present, content drifted → replaced in place      ("updated")
+#   - markers present, content identical → left alone            ("skip")
+#   - markers absent, legacy guard hit → legacy paragraph removed,
+#     managed block appended (one-time migration)                ("migrated")
+#   - neither present → managed block appended                   ("added")
+# Managed blocks have no internal blank lines and are blank-separated from their
+# neighbours, so a legacy (un-delimited) block is exactly the blank-line paragraph
+# containing its guard — which is what the migration removes.
+sync_block_to_rc() {
+  local rc_file="$1"
+  local key="$2"   # stable id for the sentinel markers
+  local guard="$3" # grep -F pattern identifying a pre-sentinel (legacy) block
+  local block="$4" # desired block body (without sentinels)
+  local label="$5"
+
+  local begin="# >>> workstation:${key} >>>"
+  local end="# <<< workstation:${key} <<<"
+  local desired
+  desired="$(printf '%s\n%s\n%s' "$begin" "$block" "$end")"
+
+  [ -e "$rc_file" ] || touch "$rc_file"
+
+  if grep -qF "$begin" "$rc_file" 2>/dev/null; then
+    # Managed block exists — replace only if it has drifted from desired.
+    local current
+    current="$(awk -v b="$begin" -v e="$end" '
+      $0==b {f=1} f {print} $0==e {f=0}' "$rc_file")"
+    if [ "$current" = "$desired" ]; then
+      skip "$label ($rc_file)"
+    elif $DRY_RUN; then
+      dryrun "Would update $label in $rc_file"
+    else
+      local tmp
+      tmp="$(mktemp)"
+      # $desired is multi-line — pass via the environment (awk -v mangles newlines).
+      DESIRED="$desired" awk -v b="$begin" -v e="$end" '
+        $0==b {print ENVIRON["DESIRED"]; inblk=1; next}
+        inblk && $0==e {inblk=0; next}
+        inblk {next}
+        {print}' "$rc_file" >"$tmp"
+      cat "$tmp" >"$rc_file"
+      rm -f "$tmp"
+      ok "$label updated → $rc_file"
+    fi
+    return
+  fi
+
+  # No managed block yet.
+  local legacy=false
+  grep -qF "$guard" "$rc_file" 2>/dev/null && legacy=true
+
+  if $DRY_RUN; then
+    if $legacy; then
+      dryrun "Would migrate $label to a managed block in $rc_file"
+    else
+      dryrun "Would append $label to $rc_file"
+    fi
+    return
+  fi
+
+  if $legacy; then
+    # Drop the blank-line paragraph containing the guard (plus its trailing blank
+    # separator), leaving every other line byte-identical, then append the managed
+    # block fresh.
+    local tmp
+    tmp="$(mktemp)"
+    awk -v g="$guard" '
+      function flush(  i) {
+        if (drop) { drop=0; n=0; dropped=1; return }
+        for (i=0;i<n;i++) print para[i]; n=0; dropped=0
+      }
+      /^[[:space:]]*$/ { flush(); if (dropped) { dropped=0; next } print; next }
+      { para[n++]=$0; if (index($0,g)) drop=1 }
+      END { flush() }' "$rc_file" >"$tmp"
+    cat "$tmp" >"$rc_file"
+    rm -f "$tmp"
+    printf '\n%s\n' "$desired" >>"$rc_file"
+    ok "$label migrated → $rc_file"
+  else
+    printf '\n%s\n' "$desired" >>"$rc_file"
+    ok "$label → $rc_file"
+  fi
+}
+
+# Test hook: source the script with WORKSTATION_LIB_ONLY=1 to load the helpers
+# (append_to_rc / sync_block_to_rc) without running the installer. No effect on a
+# normal run, where the variable is unset.
+[ -n "${WORKSTATION_LIB_ONLY:-}" ] && return 0 2>/dev/null || true
 
 # ── env.sh — secrets and API keys ────────────────────────────────────────────
 section "Environment Config (env.sh)"
@@ -98,7 +194,8 @@ fi
 
 # Wire env.sh sourcing into each shell RC
 for rc in "${RC_FILES[@]}"; do
-  append_to_rc "$rc" \
+  sync_block_to_rc "$rc" \
+    "env-sh" \
     "workstation/env.sh" \
     "# workstation — API keys and environment
 [ -f \"\$HOME/.config/workstation/env.sh\" ] && source \"\$HOME/.config/workstation/env.sh\"" \
@@ -108,7 +205,8 @@ done
 # ── PATH — ~/.local/bin ───────────────────────────────────────────────────────
 section "PATH — ~/.local/bin"
 for rc in "${RC_FILES[@]}"; do
-  append_to_rc "$rc" \
+  sync_block_to_rc "$rc" \
+    "path-local-bin" \
     '.local/bin' \
     '# ~/.local/bin on PATH (zoxide, yq, bat alias, uv tools)
 export PATH="$HOME/.local/bin:$PATH"' \
@@ -118,7 +216,8 @@ done
 # ── PATH — uv tools ───────────────────────────────────────────────────────────
 section "PATH — uv tools (~/.cargo/bin)"
 for rc in "${RC_FILES[@]}"; do
-  append_to_rc "$rc" \
+  sync_block_to_rc "$rc" \
+    "path-uv" \
     '.cargo/bin' \
     '# uv tools (aider, llm, etc.)
 export PATH="$HOME/.cargo/bin:$PATH"' \
@@ -129,7 +228,8 @@ done
 section "ai-env Alias"
 VENV_DIR="$HOME/ai-env"
 for rc in "${RC_FILES[@]}"; do
-  append_to_rc "$rc" \
+  sync_block_to_rc "$rc" \
+    "ai-env-alias" \
     "alias ai-env=" \
     "# Activate AI/ML Python environment
 alias ai-env='source $VENV_DIR/bin/activate'" \
@@ -140,7 +240,8 @@ done
 section "fnm Shell Integration"
 if command -v fnm &>/dev/null || [ -f "$HOME/.local/share/fnm/fnm" ]; then
   for rc in "${RC_FILES[@]}"; do
-    append_to_rc "$rc" \
+    sync_block_to_rc "$rc" \
+      "fnm" \
       'fnm env' \
       '# fnm — Fast Node Manager
 export PATH="$HOME/.local/share/fnm:$PATH"
@@ -157,13 +258,15 @@ if command -v zoxide &>/dev/null; then
   for rc in "${RC_FILES[@]}"; do
     # Detect shell type from filename
     if [[ "$rc" == *zshrc ]]; then
-      append_to_rc "$rc" \
+      sync_block_to_rc "$rc" \
+        "zoxide" \
         'zoxide init' \
         '# zoxide — smarter cd
 eval "$(zoxide init zsh)"' \
         "zoxide init (zsh)"
     else
-      append_to_rc "$rc" \
+      sync_block_to_rc "$rc" \
+        "zoxide" \
         'zoxide init' \
         '# zoxide — smarter cd
 eval "$(zoxide init bash)"' \
@@ -180,7 +283,8 @@ fi
 # Workstation profile on macOS, or the user's emulator theme on Linux.
 section "Terminal Colours"
 for rc in "${RC_FILES[@]}"; do
-  append_to_rc "$rc" \
+  sync_block_to_rc "$rc" \
+    "terminal-colours" \
     'BAT_THEME' \
     '# Terminal colours (workstation) — follow the terminal'"'"'s ANSI palette
 export CLICOLOR=1                  # BSD ls colour (macOS)
@@ -265,8 +369,7 @@ section "tmux"
 # (/etc/issue.net) and MOTD. Single-quoted so $f/$SHELL expand when tmux runs it,
 # not when the RC is sourced. Inside tmux $TMUX is set, so the exec'd login shell
 # won't recurse into this block.
-TMUX_AUTOSTART='# ── Auto-start tmux (workstation) ──
-if command -v tmux &>/dev/null && [[ $- == *i* ]] && [[ -z "${TMUX:-}" ]]; then
+TMUX_AUTOSTART='if command -v tmux &>/dev/null && [[ $- == *i* ]] && [[ -z "${TMUX:-}" ]]; then
   case "${TERM_PROGRAM:-}" in
     vscode | kiro | cursor | Cursor | Antigravity) ;;
     *)
@@ -275,7 +378,8 @@ if command -v tmux &>/dev/null && [[ $- == *i* ]] && [[ -z "${TMUX:-}" ]]; then
   esac
 fi'
 for rc in "${RC_FILES[@]}"; do
-  append_to_rc "$rc" \
+  sync_block_to_rc "$rc" \
+    "tmux-autostart" \
     'Auto-start tmux (workstation)' \
     "$TMUX_AUTOSTART" \
     "tmux auto-start"

@@ -16,6 +16,11 @@ dependencies = [
     # APIs
     "anthropic",
     "openai",
+    # Cloud SDKs
+    "boto3",
+    "google-auth",
+    "google-cloud-aiplatform",
+    "google-cloud-storage",
     # Application frameworks
     "langchain",
     "llama-index",

@@ -33,6 +33,7 @@ A turnkey, idempotent setup for an AI-augmented development environment across U
     ├── uv.lock                     # Platform-conditional lockfile
     ├── lib/os.sh                   # detect_os() → macos-arm | macos-intel | linux-x86 | linux-arm
     ├── install-system.sh           # apt/brew: ripgrep, bat, fzf, eza, zoxide, jq, yq, fnm, tmux
+    ├── install-cloud.sh            # AWS CLI v2, Google Cloud CLI (gcloud)
     ├── install-ai.sh               # uv, ~/ai-env, Ollama (native), Aider, llm CLI, faster-whisper
     ├── install-mcp.sh              # Claude Code CLI, filesystem/GitHub/Playwright/Brave Search MCPs
     ├── install-docker.sh           # Docker Engine + Compose plugin, Open WebUI (Docker)

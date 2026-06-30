@@ -5,6 +5,12 @@ setup() {
 	source "$(dirname "$BATS_TEST_FILENAME")/../lib/os.sh"
 }
 
+# ── module presence ────────────────────────────────────────────────────────────
+
+@test "install modules include install-cloud.sh" {
+	[ -f "$(dirname "$BATS_TEST_FILENAME")/../install-cloud.sh" ]
+}
+
 # ── detect_os() ───────────────────────────────────────────────────────────────
 
 @test "detect_os returns a known platform string" {

@@ -297,9 +297,9 @@ done
 # username (grey 245) · directory (Cobalt2 amber 220) · git branch (Cobalt2 cyan
 # 123), then the prompt char ($) in the terminal's default foreground — white on
 # the Cobalt2 profile. Colour indices are fixed 256-colour values so both hosts
-# render the prompt identically regardless of their palette. Guarded on
-# parse_git_branch, so a host that already defines it (e.g. a hand-rolled block)
-# is left untouched.
+# render the prompt identically regardless of their palette. Managed as a
+# sentinel block so retuned colours propagate on re-run; an existing append-only
+# block (keyed on parse_git_branch) is migrated in place the first time.
 section "Shell Prompt"
 
 PROMPT_ZSH=$(
@@ -325,16 +325,18 @@ EOF
 
 for rc in "${RC_FILES[@]}"; do
   if [[ "$rc" == *zshrc ]]; then
-    append_to_rc "$rc" 'parse_git_branch' "$PROMPT_ZSH" "shell prompt (zsh)"
+    sync_block_to_rc "$rc" "prompt" 'parse_git_branch' "$PROMPT_ZSH" "shell prompt (zsh)"
   else
-    append_to_rc "$rc" 'parse_git_branch' "$PROMPT_BASH" "shell prompt (bash)"
+    sync_block_to_rc "$rc" "prompt" 'parse_git_branch' "$PROMPT_BASH" "shell prompt (bash)"
   fi
 done
 
 # ── Apple Terminal profile (macOS only) ───────────────────────────────────────
 # Imports the Cobalt2 colour profile (dark-blue background, amber accents) and
 # sets it as the default + startup profile, so new Terminal windows on any Mac
-# match. No effect on Linux (no Apple Terminal).
+# match. No effect on Linux (no Apple Terminal). Import and default-assignment are
+# separate idempotent steps, so a machine that already has the profile imported
+# still gets pointed at it on re-run.
 if [[ "$OS" == macos-* ]]; then
   section "Apple Terminal Profile"
   TERM_PROFILE="$SCRIPT_DIR/assets/Cobalt2.terminal"
@@ -344,23 +346,68 @@ if [[ "$OS" == macos-* ]]; then
     defaults read com.apple.Terminal "Window Settings" 2>/dev/null |
       grep -qE '^[[:space:]]*Cobalt2[[:space:]]*='
   }
+  cobalt2_is_default() {
+    [ "$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null)" = "Cobalt2" ] &&
+      [ "$(defaults read com.apple.Terminal "Startup Window Settings" 2>/dev/null)" = "Cobalt2" ]
+  }
   if [ ! -f "$TERM_PROFILE" ]; then
     skip "Cobalt2.terminal not found at $TERM_PROFILE"
-  elif cobalt2_profile_present; then
-    skip "Apple Terminal 'Cobalt2' profile (already imported)"
   elif $DRY_RUN; then
-    dryrun "Would import $TERM_PROFILE and set it as default + startup profile"
+    dryrun "Would import (if needed) and set Cobalt2 as default + startup profile"
   else
-    open "$TERM_PROFILE"
-    # Give Terminal a moment to register the imported profile before we point at it
-    for _ in 1 2 3 4 5; do
-      cobalt2_profile_present && break
-      sleep 1
-    done
-    defaults write com.apple.Terminal "Default Window Settings" -string "Cobalt2"
-    defaults write com.apple.Terminal "Startup Window Settings" -string "Cobalt2"
-    ok "Apple Terminal 'Cobalt2' profile imported and set as default + startup"
-    log "Restart Terminal (or open a new window) to see the Cobalt2 colours"
+    if cobalt2_profile_present; then
+      skip "Apple Terminal 'Cobalt2' profile (already imported)"
+    else
+      open "$TERM_PROFILE"
+      # Give Terminal a moment to register the imported profile before we point at it
+      for _ in 1 2 3 4 5; do
+        cobalt2_profile_present && break
+        sleep 1
+      done
+      ok "Apple Terminal 'Cobalt2' profile imported"
+    fi
+    if cobalt2_is_default; then
+      skip "Cobalt2 already set as default + startup"
+    else
+      defaults write com.apple.Terminal "Default Window Settings" -string "Cobalt2"
+      defaults write com.apple.Terminal "Startup Window Settings" -string "Cobalt2"
+      ok "Cobalt2 set as default + startup profile"
+      log "Restart Terminal (or open a new window) to see the Cobalt2 colours"
+    fi
+  fi
+
+  # One-time cleanup: drop the superseded green-on-black "Workstation" profile
+  # earlier versions installed, so it doesn't linger in Terminal → Settings.
+  # Best-effort and non-destructive: skipped while it's still the active
+  # default/startup profile, and we re-assert Cobalt2 afterwards so a cfprefsd
+  # reload can't drop a buffered write. Terminal owns these prefs, so if it's
+  # holding the profile the delete may not stick — re-run after quitting Terminal,
+  # or remove it via Settings → Profiles.
+  workstation_orphan_present() {
+    defaults read com.apple.Terminal "Window Settings" 2>/dev/null |
+      grep -qE '^[[:space:]]*Workstation[[:space:]]*='
+  }
+  if workstation_orphan_present; then
+    section "Apple Terminal Cleanup"
+    wt_default="$(defaults read com.apple.Terminal "Default Window Settings" 2>/dev/null || true)"
+    wt_startup="$(defaults read com.apple.Terminal "Startup Window Settings" 2>/dev/null || true)"
+    if [ "$wt_default" = "Workstation" ] || [ "$wt_startup" = "Workstation" ]; then
+      skip "'Workstation' profile still set as default/startup — leaving it"
+    elif $DRY_RUN; then
+      dryrun "Would remove the superseded 'Workstation' Terminal profile"
+    else
+      /usr/libexec/PlistBuddy -c "Delete :Window Settings:Workstation" \
+        "$HOME/Library/Preferences/com.apple.Terminal.plist" 2>/dev/null || true
+      killall cfprefsd 2>/dev/null || true
+      # Re-assert Cobalt2 in case the cfprefsd reload dropped a buffered write.
+      defaults write com.apple.Terminal "Default Window Settings" -string "Cobalt2"
+      defaults write com.apple.Terminal "Startup Window Settings" -string "Cobalt2"
+      if workstation_orphan_present; then
+        skip "'Workstation' profile still present — remove via Settings → Profiles, or re-run after quitting Terminal"
+      else
+        ok "Removed the superseded 'Workstation' Terminal profile"
+      fi
+    fi
   fi
 fi
 
@@ -391,14 +438,17 @@ for rc in "${RC_FILES[@]}"; do
     "tmux auto-start"
 done
 
-# Minimal tmux config if none exists
+# Minimal tmux config. Written on first run; on later runs kept in sync **only
+# if** the file still carries our managed marker, so retuned status colours
+# propagate to already-set-up machines. A file without the marker is treated as
+# hand-rolled and left untouched.
 TMUX_CFG="$HOME/.tmux.conf"
-if [ -f "$TMUX_CFG" ]; then
-  skip "$TMUX_CFG (already exists)"
-elif $DRY_RUN; then
-  dryrun "Would create $TMUX_CFG"
-else
-  cat >"$TMUX_CFG" <<'CONF'
+TMUX_MARKER="# Managed by dev-workstation-build/install-dotfiles.sh"
+# Render the desired config to a temp file via a direct heredoc, then compare /
+# copy. (A heredoc inside $(…) command substitution mis-parses on macOS's
+# system bash, so we avoid it.)
+TMUX_TMP="$(mktemp)"
+cat >"$TMUX_TMP" <<'CONF'
 # ~/.tmux.conf — workstation default
 # Managed by dev-workstation-build/install-dotfiles.sh. Docs: https://github.com/tmux/tmux/wiki
 
@@ -445,8 +495,27 @@ setw -g window-status-current-style "fg=#3AD900,bold"   # active window — Coba
 setw -g window-status-current-format " #I:#W "
 setw -g window-status-format " #I:#W "
 CONF
-  ok "Minimal tmux config created at $TMUX_CFG"
+if [ ! -f "$TMUX_CFG" ]; then
+  if $DRY_RUN; then
+    dryrun "Would create $TMUX_CFG"
+  else
+    cp "$TMUX_TMP" "$TMUX_CFG"
+    ok "tmux config created at $TMUX_CFG"
+  fi
+elif grep -qF "$TMUX_MARKER" "$TMUX_CFG"; then
+  # Workstation-owned (carries our marker) — keep in sync with the desired body.
+  if cmp -s "$TMUX_TMP" "$TMUX_CFG"; then
+    skip "$TMUX_CFG (up to date)"
+  elif $DRY_RUN; then
+    dryrun "Would update $TMUX_CFG (workstation-managed)"
+  else
+    cp "$TMUX_TMP" "$TMUX_CFG"
+    ok "tmux config updated → $TMUX_CFG"
+  fi
+else
+  skip "$TMUX_CFG (hand-rolled — left untouched)"
 fi
+rm -f "$TMUX_TMP"
 
 echo -e "\n${BOLD}${GREEN}Dotfiles wired!${RESET}"
 echo ""

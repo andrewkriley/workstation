@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # install-dotfiles.sh — Shell RC wiring and environment configuration
-# Wires: env.sh sourcing, ai-env alias, starship init, zoxide init, fnm env,
-#        ~/.local/bin on PATH, uv tools on PATH
+# Wires: env.sh sourcing, ai-env alias, tmux config + auto-start, zoxide init,
+#        fnm env, ~/.local/bin on PATH, uv tools on PATH
 # Safe to re-run — idempotent throughout (guards all appends with grep checks).
 
 set -euo pipefail
@@ -174,91 +174,79 @@ else
   skip "zoxide not installed — skipping shell integration"
 fi
 
-# ── starship prompt ───────────────────────────────────────────────────────────
-section "Starship Prompt"
-if command -v starship &>/dev/null; then
-  for rc in "${RC_FILES[@]}"; do
-    if [[ "$rc" == *zshrc ]]; then
-      append_to_rc "$rc" \
-        'starship init' \
-        '# starship prompt
-eval "$(starship init zsh)"' \
-        "starship init (zsh)"
-    else
-      append_to_rc "$rc" \
-        'starship init' \
-        '# starship prompt
-eval "$(starship init bash)"' \
-        "starship init (bash)"
-    fi
-  done
+# ── tmux — auto-start + config ────────────────────────────────────────────────
+section "tmux"
 
-  # Minimal starship config if none exists
-  STARSHIP_CFG="$HOME/.config/starship.toml"
-  if [ ! -f "$STARSHIP_CFG" ]; then
-    if $DRY_RUN; then
-      dryrun "Would create $STARSHIP_CFG"
-    else
-      mkdir -p "$(dirname "$STARSHIP_CFG")"
-      cat >"$STARSHIP_CFG" <<'TOML'
-# starship.toml — workstation default
-# Docs: https://starship.rs/config/
+# Auto-start tmux for interactive standalone terminals. Skips when already inside
+# tmux, non-interactive, or in an IDE/embedded terminal (vscode/kiro/cursor/
+# Antigravity/JetBrains) whose shell integration tmux would break.
+TMUX_AUTOSTART='# ── Auto-start tmux (workstation) ──
+if command -v tmux &>/dev/null && [[ $- == *i* ]] && [[ -z "${TMUX:-}" ]]; then
+  case "${TERM_PROGRAM:-}" in
+    vscode | kiro | cursor | Cursor | Antigravity) ;;
+    *)
+      [[ -z "${TERMINAL_EMULATOR:-}" ]] && exec tmux new-session -A -s main
+      ;;
+  esac
+fi'
+for rc in "${RC_FILES[@]}"; do
+  append_to_rc "$rc" \
+    'Auto-start tmux (workstation)' \
+    "$TMUX_AUTOSTART" \
+    "tmux auto-start"
+done
 
-# Left prompt: path → git → python → character
-format = """
-$directory$git_branch$git_status$python$character"""
-
-# Right prompt: slow/noisy info stays out of the way
-right_format = """
-$kubernetes$docker_context$cmd_duration$time"""
-
-[character]
-success_symbol = "[❯](bold green)"
-error_symbol   = "[❯](bold red)"
-
-[directory]
-truncation_length = 3
-truncate_to_repo  = true
-
-[git_branch]
-symbol = " "
-
-[git_status]
-ahead    = "⇡${count}"
-behind   = "⇣${count}"
-diverged = "⇕⇡${ahead_count}⇣${behind_count}"
-staged   = "[+${count}](green)"
-stashed  = "[$count](yellow)"
-
-[python]
-symbol             = " "
-pyenv_version_name = false
-format             = '[${symbol}(${virtualenv})]($style) '
-
-[cmd_duration]
-min_time = 2000
-format   = "took [$duration](bold yellow) "
-
-[docker_context]
-only_with_files = false
-
-[kubernetes]
-disabled = false
-format   = '[$symbol$context(\($namespace\))]($style) '
-
-[time]
-disabled    = false
-time_format = "%H:%M"
-format      = '[$time]($style) '
-style       = "dimmed white"
-TOML
-      ok "Minimal starship config created at $STARSHIP_CFG"
-    fi
-  else
-    skip "starship.toml (already exists)"
-  fi
+# Minimal tmux config if none exists
+TMUX_CFG="$HOME/.tmux.conf"
+if [ -f "$TMUX_CFG" ]; then
+  skip "~/.tmux.conf (already exists)"
+elif $DRY_RUN; then
+  dryrun "Would create $TMUX_CFG"
 else
-  skip "starship not installed — skipping shell integration"
+  cat >"$TMUX_CFG" <<'CONF'
+# ~/.tmux.conf — workstation default
+# Managed by dev-workstation-build/install-dotfiles.sh. Docs: https://github.com/tmux/tmux/wiki
+
+# ── General ───────────────────────────────────────────────────────────────────
+set -g default-terminal "tmux-256color"
+set -ga terminal-overrides ",*256col*:Tc"      # truecolor passthrough
+set -g mouse on
+set -g history-limit 10000
+set -sg escape-time 10
+set -g focus-events on
+set -g base-index 1
+setw -g pane-base-index 1
+set -g renumber-windows on
+setw -g mode-keys vi
+
+# ── Reload ────────────────────────────────────────────────────────────────────
+unbind r
+bind r source-file ~/.tmux.conf \; display-message "tmux.conf reloaded"
+
+# ── Splits / windows open in the current path ─────────────────────────────────
+bind | split-window -h -c "#{pane_current_path}"
+bind - split-window -v -c "#{pane_current_path}"
+bind c new-window -c "#{pane_current_path}"
+
+# ── Status bar (replaces starship's at-a-glance info) ─────────────────────────
+set -g status on
+set -g status-interval 5
+set -g status-justify left
+set -g status-position bottom
+set -g status-style "bg=default,fg=white"
+
+set -g status-left-length 30
+set -g status-left "#[fg=cyan,bold] #S #[default]"
+
+# Right side: git branch · path · host · time
+set -g status-right-length 120
+set -g status-right "#[fg=yellow]#(cd '#{pane_current_path}' && git rev-parse --abbrev-ref HEAD 2>/dev/null) #[fg=blue]#{b:pane_current_path} #[fg=green]#H #[fg=white]%H:%M "
+
+setw -g window-status-current-style "fg=green,bold"
+setw -g window-status-current-format " #I:#W "
+setw -g window-status-format " #I:#W "
+CONF
+  ok "Minimal tmux config created at $TMUX_CFG"
 fi
 
 echo -e "\n${BOLD}${GREEN}Dotfiles wired!${RESET}"

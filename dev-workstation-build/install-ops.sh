@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # install-ops.sh — DevOps + platform tools
-# Installs: lazygit, k9s, starship, gh, glab, terraform, ansible, kubectl, helm
+# Installs: lazygit, k9s, gh, glab, terraform, ansible, kubectl, helm
 # Docker is handled separately by install-docker.sh
 # Safe to re-run — idempotent throughout.
 
@@ -99,18 +99,6 @@ else
     rm -f /tmp/k9s
     ok "k9s ${K9S_VERSION} installed"
   fi
-fi
-
-# ── starship ──────────────────────────────────────────────────────────────────
-section "Starship Prompt"
-if command -v starship &>/dev/null; then
-  skip "starship ($(starship --version 2>/dev/null | head -1))"
-elif $DRY_RUN; then
-  dryrun "Would run: curl -sS https://starship.rs/install.sh | sh"
-else
-  log "Installing starship..."
-  curl -sS https://starship.rs/install.sh | sh -s -- --yes
-  ok "starship installed"
 fi
 
 # ── gh (GitHub CLI) ───────────────────────────────────────────────────────────

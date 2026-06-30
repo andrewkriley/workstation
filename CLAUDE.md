@@ -29,8 +29,10 @@ Personal workstation scaffold — a turnkey, idempotent setup for an AI-augmente
     ├── install-mcp.sh              # Claude Code CLI, filesystem/GitHub/Playwright/Brave Search MCP servers
     ├── install-docker.sh           # Docker Engine + Compose plugin, Open WebUI (Docker)
     ├── install-ops.sh              # lazygit, k9s, gh, glab, terraform, ansible, kubectl, helm
-    ├── install-dotfiles.sh         # Shell RC wiring, env.sh from template, tmux config + auto-start
+    ├── install-dotfiles.sh         # Shell RC wiring, env.sh from template, tmux config + auto-start, terminal colours + Apple Terminal profile
     ├── audit.sh                    # Read-only environment inventory
+    ├── assets/
+    │   └── Workstation.terminal    # Apple Terminal colour profile (green-on-black), imported on macOS
     └── tests/                      # bats unit tests — one file per module
 ```
 
@@ -149,6 +151,9 @@ All platform branching is centralised in `lib/os.sh`. `detect_os()` returns one 
 | Reload hint | `source ~/.zshrc` | `source ~/.bashrc` |
 | All wiring (env.sh, PATH, aliases, fnm, zoxide, tmux config + auto-start) | Identical | Identical |
 | tmux auto-start | Skips IDE/embedded terminals (vscode/kiro/cursor/Antigravity/JetBrains) | Same |
+| tmux status colours | Explicit hex (Apple Terminal default ANSI palette) — identical render on any emulator | Same |
+| Terminal colours (RC) | `CLICOLOR=1`, `BAT_THEME=ansi`, GNU `dircolors` if present — follow the 16-colour palette | Same |
+| Apple Terminal profile | Imports `assets/Workstation.terminal`, sets as default + startup (idempotent) | N/A — no Apple Terminal |
 
 ## Deferred / Future
 

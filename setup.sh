@@ -407,7 +407,11 @@ if is_selected "_claude_skills"; then
     for skill_dir in "$CLAUDE_SKILLS_SRC"/*/; do
       skill_name="$(basename "$skill_dir")"
       target="$CLAUDE_SKILLS_DEST/$skill_name"
-      if [ -L "$target" ]; then
+      if [ -L "$target" ] && [ ! -e "$target" ]; then
+        rm "$target"
+        ln -s "$skill_dir" "$target"
+        ok "Claude skill: $skill_name (repaired dangling symlink)"
+      elif [ -L "$target" ]; then
         skip "Claude skill: $skill_name (symlink exists)"
       elif [ -e "$target" ]; then
         echo -e "${RED}[conflict]${RESET} $target exists and is not a symlink — skipping"
@@ -416,6 +420,27 @@ if is_selected "_claude_skills"; then
         ok "Claude skill: $skill_name"
       fi
     done
+  fi
+
+  # Wire the shared profile — skills read it from ~/.claude/PROFILE.md
+  PROFILE_SRC="$REPO_DIR/skills/common/PROFILE.md"
+  PROFILE_DEST="$HOME/.claude/PROFILE.md"
+
+  if $DRY_RUN; then
+    dryrun "Would symlink: $PROFILE_DEST -> $PROFILE_SRC"
+  else
+    if [ -L "$PROFILE_DEST" ] && [ ! -e "$PROFILE_DEST" ]; then
+      rm "$PROFILE_DEST"
+      ln -s "$PROFILE_SRC" "$PROFILE_DEST"
+      ok "PROFILE.md (repaired dangling symlink)"
+    elif [ -L "$PROFILE_DEST" ]; then
+      skip "PROFILE.md (symlink exists)"
+    elif [ -e "$PROFILE_DEST" ]; then
+      echo -e "${RED}[conflict]${RESET} $PROFILE_DEST exists and is not a symlink — skipping"
+    else
+      ln -s "$PROFILE_SRC" "$PROFILE_DEST"
+      ok "PROFILE.md"
+    fi
   fi
 fi
 
@@ -436,7 +461,11 @@ if is_selected "_cursor_rules"; then
     for workflow in "$CURSOR_RULES_SRC"/*.md; do
       name="$(basename "$workflow")"
       target="$CURSOR_RULES_DEST/$name"
-      if [ -L "$target" ]; then
+      if [ -L "$target" ] && [ ! -e "$target" ]; then
+        rm "$target"
+        ln -s "$workflow" "$target"
+        ok "Cursor rule: $name (repaired dangling symlink)"
+      elif [ -L "$target" ]; then
         skip "Cursor rule: $name (symlink exists)"
       else
         ln -s "$workflow" "$target"

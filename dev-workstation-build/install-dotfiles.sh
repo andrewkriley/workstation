@@ -199,7 +199,7 @@ done
 # Minimal tmux config if none exists
 TMUX_CFG="$HOME/.tmux.conf"
 if [ -f "$TMUX_CFG" ]; then
-  skip "~/.tmux.conf (already exists)"
+  skip "$TMUX_CFG (already exists)"
 elif $DRY_RUN; then
   dryrun "Would create $TMUX_CFG"
 else

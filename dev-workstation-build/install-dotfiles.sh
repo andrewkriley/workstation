@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # install-dotfiles.sh — Shell RC wiring and environment configuration
 # Wires: env.sh sourcing, ai-env alias, tmux config + auto-start, zoxide init,
-#        fnm env, ~/.local/bin on PATH, uv tools on PATH
+#        fnm env, ~/.local/bin on PATH, uv tools on PATH, shell prompt
 # Safe to re-run — idempotent throughout (guards all appends with grep checks).
 
 set -euo pipefail
@@ -189,6 +189,44 @@ command -v dircolors &>/dev/null && eval "$(dircolors -b 2>/dev/null)" || true' 
     "terminal colours"
 done
 
+# ── Shell prompt (workstation) ────────────────────────────────────────────────
+# username (grey 243) · directory (red 197) · git branch (blue 39), then the
+# prompt char ($) in the terminal's default foreground — green on the
+# Workstation profile. Colour indices are fixed 256-colour values so both hosts
+# render the prompt identically regardless of their palette. Guarded on
+# parse_git_branch, so a host that already defines it (e.g. a hand-rolled block)
+# is left untouched.
+section "Shell Prompt"
+
+PROMPT_ZSH=$(
+  cat <<'EOF'
+# Prompt (workstation) — user · dir · git branch
+parse_git_branch() { git branch 2>/dev/null | sed -n -e 's/^\* \(.*\)/[\1]/p'; }
+COLOR_DEF=$'%f'
+COLOR_USR=$'%F{243}'
+COLOR_DIR=$'%F{197}'
+COLOR_GIT=$'%F{39}'
+setopt PROMPT_SUBST
+PROMPT='${COLOR_USR}%n ${COLOR_DIR}%~ ${COLOR_GIT}$(parse_git_branch)${COLOR_DEF} $ '
+EOF
+)
+
+PROMPT_BASH=$(
+  cat <<'EOF'
+# Prompt (workstation) — user · dir · git branch
+parse_git_branch() { git branch 2>/dev/null | sed -n -e 's/^\* \(.*\)/[\1]/p'; }
+PS1='\[\e[38;5;243m\]\u \[\e[38;5;197m\]\w \[\e[38;5;39m\]$(parse_git_branch)\[\e[0m\] $ '
+EOF
+)
+
+for rc in "${RC_FILES[@]}"; do
+  if [[ "$rc" == *zshrc ]]; then
+    append_to_rc "$rc" 'parse_git_branch' "$PROMPT_ZSH" "shell prompt (zsh)"
+  else
+    append_to_rc "$rc" 'parse_git_branch' "$PROMPT_BASH" "shell prompt (bash)"
+  fi
+done
+
 # ── Apple Terminal profile (macOS only) ───────────────────────────────────────
 # Imports the Workstation colour profile (green-on-black, exported from this
 # machine) and sets it as the default + startup profile, so new Terminal windows
@@ -227,7 +265,7 @@ if command -v tmux &>/dev/null && [[ $- == *i* ]] && [[ -z "${TMUX:-}" ]]; then
   case "${TERM_PROGRAM:-}" in
     vscode | kiro | cursor | Cursor | Antigravity) ;;
     *)
-      [[ -z "${TERMINAL_EMULATOR:-}" ]] && exec tmux new-session -A -s main
+      [[ -z "${TERMINAL_EMULATOR:-}" ]] && exec tmux new-session
       ;;
   esac
 fi'

@@ -338,9 +338,16 @@ done
 if [[ "$OS" == macos-* ]]; then
   section "Apple Terminal Profile"
   TERM_PROFILE="$SCRIPT_DIR/assets/Workstation.terminal"
+  # `defaults read` prints the profile name unquoted, as a dict key
+  # (`    Workstation =     {`) — not the `"Workstation"` the old check looked
+  # for, so it never matched and re-imported on every run. Match the key line.
+  workstation_profile_present() {
+    defaults read com.apple.Terminal "Window Settings" 2>/dev/null |
+      grep -qE '^[[:space:]]*Workstation[[:space:]]*='
+  }
   if [ ! -f "$TERM_PROFILE" ]; then
     skip "Workstation.terminal not found at $TERM_PROFILE"
-  elif defaults read com.apple.Terminal "Window Settings" 2>/dev/null | grep -q '"Workstation"'; then
+  elif workstation_profile_present; then
     skip "Apple Terminal 'Workstation' profile (already imported)"
   elif $DRY_RUN; then
     dryrun "Would import $TERM_PROFILE and set it as default + startup profile"
@@ -348,7 +355,7 @@ if [[ "$OS" == macos-* ]]; then
     open "$TERM_PROFILE"
     # Give Terminal a moment to register the imported profile before we point at it
     for _ in 1 2 3 4 5; do
-      defaults read com.apple.Terminal "Window Settings" 2>/dev/null | grep -q '"Workstation"' && break
+      workstation_profile_present && break
       sleep 1
     done
     defaults write com.apple.Terminal "Default Window Settings" -string "Workstation"

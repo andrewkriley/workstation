@@ -174,6 +174,48 @@ else
   skip "zoxide not installed — skipping shell integration"
 fi
 
+# ── Terminal colours (portable, palette-following) ────────────────────────────
+# These follow the terminal's own 16-colour ANSI palette rather than hardcoding
+# shades, so they adopt whatever scheme the host uses — the green-on-black
+# Workstation profile on macOS, or the user's emulator theme on Linux.
+section "Terminal Colours"
+for rc in "${RC_FILES[@]}"; do
+  append_to_rc "$rc" \
+    'BAT_THEME' \
+    '# Terminal colours (workstation) — follow the terminal'"'"'s ANSI palette
+export CLICOLOR=1                  # BSD ls colour (macOS)
+export BAT_THEME=ansi              # bat syntax highlight uses the 16-colour palette
+command -v dircolors &>/dev/null && eval "$(dircolors -b 2>/dev/null)" || true' \
+    "terminal colours"
+done
+
+# ── Apple Terminal profile (macOS only) ───────────────────────────────────────
+# Imports the Workstation colour profile (green-on-black, exported from this
+# machine) and sets it as the default + startup profile, so new Terminal windows
+# on any Mac match. No effect on Linux (no Apple Terminal).
+if [[ "$OS" == macos-* ]]; then
+  section "Apple Terminal Profile"
+  TERM_PROFILE="$SCRIPT_DIR/assets/Workstation.terminal"
+  if [ ! -f "$TERM_PROFILE" ]; then
+    skip "Workstation.terminal not found at $TERM_PROFILE"
+  elif defaults read com.apple.Terminal "Window Settings" 2>/dev/null | grep -q '"Workstation"'; then
+    skip "Apple Terminal 'Workstation' profile (already imported)"
+  elif $DRY_RUN; then
+    dryrun "Would import $TERM_PROFILE and set it as default + startup profile"
+  else
+    open "$TERM_PROFILE"
+    # Give Terminal a moment to register the imported profile before we point at it
+    for _ in 1 2 3 4 5; do
+      defaults read com.apple.Terminal "Window Settings" 2>/dev/null | grep -q '"Workstation"' && break
+      sleep 1
+    done
+    defaults write com.apple.Terminal "Default Window Settings" -string "Workstation"
+    defaults write com.apple.Terminal "Startup Window Settings" -string "Workstation"
+    ok "Apple Terminal 'Workstation' profile imported and set as default + startup"
+    log "Restart Terminal (or open a new window) to see the Workstation colours"
+  fi
+fi
+
 # ── tmux — auto-start + config ────────────────────────────────────────────────
 section "tmux"
 
@@ -229,20 +271,24 @@ bind - split-window -v -c "#{pane_current_path}"
 bind c new-window -c "#{pane_current_path}"
 
 # ── Status bar (replaces starship's at-a-glance info) ─────────────────────────
+# Colours are explicit hex (Apple Terminal's default ANSI palette) rather than
+# named ANSI colours, so the bar renders identically on every host regardless of
+# the terminal emulator's own colour scheme. bg=default inherits the terminal
+# background (the green-on-black Workstation profile on macOS; see assets/).
 set -g status on
 set -g status-interval 5
 set -g status-justify left
 set -g status-position bottom
-set -g status-style "bg=default,fg=white"
+set -g status-style "bg=default,fg=#BFBFBF"          # inherit bg; dim-white text
 
 set -g status-left-length 30
-set -g status-left "#[fg=cyan,bold] #S #[default]"
+set -g status-left "#[fg=#00A6B2,bold] #S #[default]"   # session — cyan
 
 # Right side: git branch · path · host · time
 set -g status-right-length 120
-set -g status-right "#[fg=yellow]#(cd '#{pane_current_path}' && git rev-parse --abbrev-ref HEAD 2>/dev/null) #[fg=blue]#{b:pane_current_path} #[fg=green]#H #[fg=white]%H:%M "
+set -g status-right "#[fg=#999900]#(cd '#{pane_current_path}' && git rev-parse --abbrev-ref HEAD 2>/dev/null) #[fg=#0000B2]#{b:pane_current_path} #[fg=#00A600]#H #[fg=#BFBFBF]%H:%M "
 
-setw -g window-status-current-style "fg=green,bold"
+setw -g window-status-current-style "fg=#00A600,bold"   # active window — green
 setw -g window-status-current-format " #I:#W "
 setw -g window-status-format " #I:#W "
 CONF

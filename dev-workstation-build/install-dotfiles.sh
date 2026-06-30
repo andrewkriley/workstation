@@ -260,12 +260,17 @@ section "tmux"
 # Auto-start tmux for interactive standalone terminals. Skips when already inside
 # tmux, non-interactive, or in an IDE/embedded terminal (vscode/kiro/cursor/
 # Antigravity/JetBrains) whose shell integration tmux would break.
+# Reprint the login banner/MOTD inside the new tmux session — tmux switches the
+# terminal's screen buffer on attach, which wipes the SSH pre-auth banner
+# (/etc/issue.net) and MOTD. Single-quoted so $f/$SHELL expand when tmux runs it,
+# not when the RC is sourced. Inside tmux $TMUX is set, so the exec'd login shell
+# won't recurse into this block.
 TMUX_AUTOSTART='# ── Auto-start tmux (workstation) ──
 if command -v tmux &>/dev/null && [[ $- == *i* ]] && [[ -z "${TMUX:-}" ]]; then
   case "${TERM_PROGRAM:-}" in
     vscode | kiro | cursor | Cursor | Antigravity) ;;
     *)
-      [[ -z "${TERMINAL_EMULATOR:-}" ]] && exec tmux new-session
+      [[ -z "${TERMINAL_EMULATOR:-}" ]] && exec tmux new-session '\''for f in /etc/issue.net /run/motd.dynamic /etc/motd; do [ -s "$f" ] && cat "$f"; done; exec "${SHELL:-/bin/bash}" -l'\''
       ;;
   esac
 fi'
